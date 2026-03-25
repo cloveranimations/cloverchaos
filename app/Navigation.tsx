@@ -53,7 +53,7 @@ export default function Navigation() {
           {['Episodes', 'Characters', 'About', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={`#${item.toLowerCase()}`}
+              href={item === 'Characters' ? '/characters' : `#${item.toLowerCase()}`}
               style={{
                 color: '#e2e8f0',
                 fontSize: '14px',
@@ -105,7 +105,7 @@ export default function Navigation() {
           {['Episodes', 'Characters', 'About', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={`#${item.toLowerCase()}`}
+              href={item === 'Characters' ? '/characters' : `#${item.toLowerCase()}`}
               onClick={() => setMobileOpen(false)}
               style={{ color: '#4ade80', fontSize: '14px' }}
             >
