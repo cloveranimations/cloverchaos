@@ -282,14 +282,7 @@ export default function Home() {
       <style>{`.ep-scroll::-webkit-scrollbar { display: none; } .ep-scroll { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
       <section id="episodes" style={{ padding: '100px 20px', position: 'relative', overflow: 'hidden' }}>
         {/* Video background */}
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-          <iframe
-            src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&controls=0&showinfo=0&playlist=zXVoG3z8CMo&disablekb=1&modestbranding=1&rel=0&iv_load_policy=3"
-            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '150%', height: '150%', border: 'none', opacity: 0.5, filter: 'blur(3px)' }}
-            allow="autoplay; encrypted-media; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', backgroundImage: 'url(https://img.youtube.com/vi/zXVoG3z8CMo/maxresdefault.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(4px)', transform: 'scale(1.05)' }} />
         {/* Dark overlay over video */}
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 0 }} />
         <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
