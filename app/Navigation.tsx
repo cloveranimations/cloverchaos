@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function Navigation() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const isSubPage = pathname !== '/';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,7 +35,7 @@ export default function Navigation() {
     >
       <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {/* Logo */}
-        <a href="#" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <a href={isSubPage ? '/' : '#'} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <img src="/logo.png" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
           <span
             style={{
@@ -53,7 +56,7 @@ export default function Navigation() {
           {['Episodes', 'Characters', 'About', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={item === 'Characters' ? '/characters' : `#${item.toLowerCase()}`}
+              href={item === 'Characters' ? '/characters' : isSubPage ? `/#${item.toLowerCase()}` : `#${item.toLowerCase()}`}
               style={{
                 color: '#e2e8f0',
                 fontSize: '14px',
@@ -105,7 +108,7 @@ export default function Navigation() {
           {['Episodes', 'Characters', 'About', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={item === 'Characters' ? '/characters' : `#${item.toLowerCase()}`}
+              href={item === 'Characters' ? '/characters' : isSubPage ? `/#${item.toLowerCase()}` : `#${item.toLowerCase()}`}
               onClick={() => setMobileOpen(false)}
               style={{ color: '#4ade80', fontSize: '14px' }}
             >
