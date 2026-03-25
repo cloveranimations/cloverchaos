@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vercel --prod)",
+      "Bash(node_modules/.bin/vercel --prod)",
+      "Bash(./node_modules/.bin/vercel --prod)",
+      "Bash(npm run:*)"
+    ]
+  }
+}
