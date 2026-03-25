@@ -56,7 +56,7 @@ export default function Navigation() {
           {['About', 'Episodes', 'Characters', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={item === 'Characters' ? '/characters' : isSubPage ? `/#${item.toLowerCase()}` : `#${item.toLowerCase()}`}
+              href={`/${item.toLowerCase()}`}
               style={{
                 color: '#e2e8f0',
                 fontSize: '14px',
@@ -108,7 +108,7 @@ export default function Navigation() {
           {['About', 'Episodes', 'Characters', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={item === 'Characters' ? '/characters' : isSubPage ? `/#${item.toLowerCase()}` : `#${item.toLowerCase()}`}
+              href={`/${item.toLowerCase()}`}
               onClick={() => setMobileOpen(false)}
               style={{ color: '#4ade80', fontSize: '14px' }}
             >
