@@ -284,9 +284,10 @@ export default function Home() {
         {/* Video background */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
           <iframe
-            src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&controls=0&showinfo=0&playlist=zXVoG3z8CMo&disablekb=1&modestbranding=1"
-            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '130%', height: '130%', border: 'none', opacity: 0.35 }}
-            allow="autoplay; encrypted-media"
+            src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&controls=0&showinfo=0&playlist=zXVoG3z8CMo&disablekb=1&modestbranding=1&enablejsapi=1"
+            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '150%', height: '150%', border: 'none', opacity: 0.35 }}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
           />
         </div>
         {/* Dark overlay over video */}
