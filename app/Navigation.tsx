@@ -53,7 +53,7 @@ export default function Navigation() {
 
         {/* Desktop Menu */}
         <div className="hide-mobile" style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-          {['About', 'Episodes', 'Characters', 'Subscribe'].map((item) => (
+          {['About', 'Episodes', 'Characters', 'Articles', 'Subscribe'].map((item) => (
             <a
               key={item}
               href={`/${item.toLowerCase()}`}
@@ -105,7 +105,7 @@ export default function Navigation() {
           }}
           className="show-mobile"
         >
-          {['About', 'Episodes', 'Characters', 'Subscribe'].map((item) => (
+          {['About', 'Episodes', 'Characters', 'Articles', 'Subscribe'].map((item) => (
             <a
               key={item}
               href={`/${item.toLowerCase()}`}
