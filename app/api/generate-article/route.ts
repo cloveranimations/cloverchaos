@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import redis from '@/lib/redis';
+import { createClient } from 'redis';
 import { NextResponse } from 'next/server';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -28,15 +28,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const topic = topics[Math.floor(Math.random() * topics.length)];
+  const redis = createClient({ url: process.env.REDIS_URL });
+  await redis.connect();
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    messages: [
-      {
-        role: 'user',
-        content: `Write a short engaging wiki-style article (300-400 words) for the Clover Chaos fan wiki about: ${topic}.
+  try {
+    const topic = topics[Math.floor(Math.random() * topics.length)];
+
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: `Write a short engaging wiki-style article (300-400 words) for the Clover Chaos fan wiki about: ${topic}.
 
 Clover Chaos is an indie animated web series set in 2018 Montreal. Main characters: Pat (protagonist, wields a magical pocketwatch), Sarah (anxious friend), Matthew (grumpy friend), Kasey Heffley (rival trapped in the Theaneb dimension), Valentina Venezetti (engineer/gatekeeper with robot sidekick Velma), Mark Heffley (villain/mastermind who invented the StarGazer).
 
@@ -44,22 +48,25 @@ Format with a compelling title, 2-3 paragraphs, lore-accurate and exciting for f
 
 Return ONLY valid JSON in this exact format:
 {"title": "...", "excerpt": "one sentence summary", "content": "full article text with paragraphs separated by \\n\\n"}`,
-      },
-    ],
-  });
+        },
+      ],
+    });
 
-  const raw = message.content[0].type === 'text' ? message.content[0].text : '';
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return NextResponse.json({ error: 'Failed to parse article' }, { status: 500 });
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '';
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return NextResponse.json({ error: 'Failed to parse article' }, { status: 500 });
 
-  const article = JSON.parse(jsonMatch[0]);
-  const id = Date.now().toString();
-  const articleData = { id, ...article, createdAt: new Date().toISOString() };
+    const article = JSON.parse(jsonMatch[0]);
+    const id = Date.now().toString();
+    const articleData = { id, ...article, createdAt: new Date().toISOString() };
 
-  const existing = await redis.get('article_ids');
-  const ids: string[] = existing ? JSON.parse(existing) : [];
-  await redis.set(`article:${id}`, JSON.stringify(articleData));
-  await redis.set('article_ids', JSON.stringify([id, ...ids].slice(0, 200)));
+    const existing = await redis.get('article_ids');
+    const ids: string[] = existing ? JSON.parse(existing) : [];
+    await redis.set(`article:${id}`, JSON.stringify(articleData));
+    await redis.set('article_ids', JSON.stringify([id, ...ids].slice(0, 200)));
 
-  return NextResponse.json({ success: true, article: articleData });
+    return NextResponse.json({ success: true, article: articleData });
+  } finally {
+    await redis.disconnect();
+  }
 }
