@@ -112,7 +112,7 @@ export default function GamePage() {
       { score: 420, done: false, speaker: 'Mark', lines: ["Like Clockwork.."] },
     ] as { score: number; done: boolean; speaker: string; lines: string[] }[],
     bossTriggered: false,
-    bossPhase: 'none' as 'none' | 'warning' | 'entering' | 'fighting' | 'dead',
+    bossPhase: 'none' as 'none' | 'warning' | 'entering' | 'fighting' | 'dying' | 'dead',
     bossHealth: 5,
     bossX: W + 450,
     bossRotation: 0,
@@ -120,6 +120,10 @@ export default function GamePage() {
     bossBeams: [] as { x: number; y: number; vx: number; vy: number; angle: number }[],
     bossBeamTimer: 0,
     bossEnterTimer: 0,
+    bossDeathTimer: 0,
+    bossFlash: 0,
+    bossShakeX: 0,
+    bossShakeY: 0,
   });
   const rafRef = useRef<number>(0);
 
@@ -187,6 +191,10 @@ export default function GamePage() {
     s.bossBeams = [];
     s.bossBeamTimer = 0;
     s.bossEnterTimer = 0;
+    s.bossDeathTimer = 0;
+    s.bossFlash = 0;
+    s.bossShakeX = 0;
+    s.bossShakeY = 0;
     s.speed = OBSTACLE_SPEED_START;
     s.frame = 0;
     s.bgX = 0;
@@ -574,10 +582,10 @@ export default function GamePage() {
         }
         if (s.bossPhase !== 'none') {
           // Rotation + letterbox only during entering/fighting/dead (not during silence)
-          const rotTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? -10 : 0;
+          const rotTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting' || s.bossPhase === 'dying') ? -10 : 0;
           if (s.bossRotation < rotTarget) s.bossRotation = Math.min(rotTarget, s.bossRotation + 0.8);
           else if (s.bossRotation > rotTarget) s.bossRotation = Math.max(rotTarget, s.bossRotation - 0.8);
-          const lbTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? 24 : 0;
+          const lbTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting' || s.bossPhase === 'dying') ? 24 : 0;
           if (s.bossLetterbox < lbTarget) s.bossLetterbox = Math.min(lbTarget, s.bossLetterbox + 2);
           else if (s.bossLetterbox > lbTarget) s.bossLetterbox = Math.max(lbTarget, s.bossLetterbox - 2);
           // Entering — quick but heavy slide
@@ -609,6 +617,17 @@ export default function GamePage() {
           s.bossBeams = s.bossBeams.filter(b => b.x > -80 && b.x < W + 80 && b.y > -80 && b.y < H + 80);
           for (const b of s.bossBeams) {
             if (px + pw > b.x - 28 && px < b.x + 28 && py + ph > b.y - 12 && py < b.y + 12) takeDamage(2);
+          }
+          // Dying — vibrate + white flash, then transition to dead
+          if (s.bossPhase === 'dying') {
+            s.bossDeathTimer++;
+            const t = s.bossDeathTimer;
+            s.bossShakeX = (Math.random() - 0.5) * 22;
+            s.bossShakeY = (Math.random() - 0.5) * 12;
+            if (t < 60)       s.bossFlash = (t / 60) * 0.85;
+            else if (t < 80)  s.bossFlash = 0.85 + (t - 60) / 20 * 0.15;
+            else if (t < 115) s.bossFlash = 1 - (t - 80) / 35;
+            else { s.bossFlash = 0; s.bossShakeX = 0; s.bossShakeY = 0; s.bossPhase = 'dead'; }
           }
           // Dead — slide boss back out right
           if (s.bossPhase === 'dead') {
@@ -684,7 +703,7 @@ export default function GamePage() {
             if (s.beam.x > s.bossX && s.beam.x < s.bossX + BOSS_W && s.beam.y > GROUND - BOSS_H && s.beam.y < GROUND) {
               s.bossHealth--;
               s.beam = null;
-              if (s.bossHealth <= 0) { s.bossPhase = 'dead'; s.bossBeams = []; }
+              if (s.bossHealth <= 0) { s.bossPhase = 'dying'; s.bossDeathTimer = 0; s.bossBeams = []; }
             }
           }
           if (s.beam && (s.beam.x > W + 60 || s.beam.y < -60 || s.beam.y > H + 60)) s.beam = null;
@@ -814,7 +833,7 @@ export default function GamePage() {
       }
 
       // ── Boss drawing ──────────────────────────────────────────────────────
-      if (s.bossPhase === 'entering' || s.bossPhase === 'fighting' || s.bossPhase === 'dead') {
+      if (s.bossPhase === 'entering' || s.bossPhase === 'fighting' || s.bossPhase === 'dying' || s.bossPhase === 'dead') {
         // Red cinematic dim — intensity tied to rotation progress
         const dimAlpha = Math.min(0.4, (Math.abs(s.bossRotation) / 10) * 0.4);
         ctx.save();
@@ -826,7 +845,7 @@ export default function GamePage() {
         // Boss machine
         const bImg = bossImgRef.current;
         if (bImg && bImg.complete && bImg.naturalWidth) {
-          ctx.drawImage(bImg, s.bossX, GROUND - BOSS_H, BOSS_W, BOSS_H);
+          ctx.drawImage(bImg, s.bossX + s.bossShakeX, GROUND - BOSS_H + s.bossShakeY, BOSS_W, BOSS_H);
         }
 
         // Boss white angled beams (like Kasey fireballs but white)
@@ -1119,6 +1138,15 @@ export default function GamePage() {
           ctx.drawImage(warnImg, -W / 2 * scl, -H / 2 * scl, W * scl, H * scl);
           ctx.restore();
         }
+      }
+
+      // Boss defeat white flash — drawn over everything
+      if (s.bossFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = s.bossFlash;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
       }
 
       if (s.paused) {
