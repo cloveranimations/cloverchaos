@@ -418,7 +418,7 @@ export default function GamePage() {
       if (e.code === 'KeyP') { e.preventDefault(); togglePause(); }
       if (e.code === 'Digit5') {
         const s = stateRef.current;
-        if (s.running && !s.dead) { s.score = 500; s.powerUpNextScore = 530; s.bossHealth = 1; s.health = 3; s.invincible = 600; }
+        if (s.running && !s.dead) { s.score = 500; s.powerUpNextScore = 530; s.health = 3; s.invincible = 600; }
       }
     }
     function onFullscreenChange() {
