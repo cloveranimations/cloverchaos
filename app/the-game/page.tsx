@@ -121,6 +121,7 @@ export default function GamePage() {
     bossLetterbox: 0,
     bossBeams: [] as { x: number; y: number; vx: number; vy: number; angle: number }[],
     bossBeamTimer: 0,
+    bossEnterTimer: 0,
   });
   const rafRef = useRef<number>(0);
 
@@ -187,6 +188,7 @@ export default function GamePage() {
     s.bossLetterbox = 0;
     s.bossBeams = [];
     s.bossBeamTimer = 0;
+    s.bossEnterTimer = 0;
     s.speed = OBSTACLE_SPEED_START;
     s.frame = 0;
     s.bgX = 0;
@@ -473,13 +475,15 @@ export default function GamePage() {
           s.jumping = false;
         }
 
-        s.obstacleTimer--;
-        if (s.obstacleTimer <= 0) {
-          const type = Math.floor(Math.random() * 3);
-          const h = type === 1 ? 30 : 40 + Math.random() * 20;
-          const w = type === 1 ? 24 : 28 + Math.random() * 16;
-          s.obstacles.push({ x: W + 10, w, h, type });
-          s.obstacleTimer = 60 + Math.random() * 60;
+        if (s.bossPhase === 'none') {
+          s.obstacleTimer--;
+          if (s.obstacleTimer <= 0) {
+            const type = Math.floor(Math.random() * 3);
+            const h = type === 1 ? 30 : 40 + Math.random() * 20;
+            const w = type === 1 ? 24 : 28 + Math.random() * 16;
+            s.obstacles.push({ x: W + 10, w, h, type });
+            s.obstacleTimer = 60 + Math.random() * 60;
+          }
         }
 
         s.obstacles = s.obstacles.filter(o => o.x + o.w > -10);
@@ -488,8 +492,8 @@ export default function GamePage() {
         const kaseyBaseX = W - PAT_W - 40;
         const kaseyBaseY = GROUND - PAT_H - 80;
 
-        // Fireball (only when Kasey not stunned)
-        if (s.kaseyStunUntil === 0) {
+        // Fireball (only when Kasey not stunned and no boss phase)
+        if (s.kaseyStunUntil === 0 && s.bossPhase === 'none') {
           s.fireballTimer--;
           if (s.fireballTimer <= 0) {
             s.fireballs.push({ x: kaseyBaseX + s.kaseyOffX, y: kaseyBaseY + PAT_H * 0.6 });
@@ -529,7 +533,7 @@ export default function GamePage() {
         if (s.markActive && s.markX > markFinalX) {
           s.markX = Math.max(markFinalX, s.markX - 5);
         }
-        if (s.markActive && s.markX <= markFinalX && s.markStunUntil === 0) {
+        if (s.markActive && s.markX <= markFinalX && s.markStunUntil === 0 && s.bossPhase === 'none') {
           s.droneTimer--;
           if (s.droneTimer <= 0) {
             s.drones.push({ x: s.markX + s.markOffX, y: GROUND - PAT_H * 0.8 });
@@ -546,23 +550,26 @@ export default function GamePage() {
         if (Math.floor(s.score) >= 500 && !s.bossTriggered) {
           s.bossTriggered = true;
           s.bossPhase = 'warning';
-          s.dialogue = null; // clear any dialogue
+          s.dialogue = null;
+          // Silence before the storm — clear everything
+          s.obstacles = []; s.fireballs = []; s.drones = []; s.beam = null;
         }
         if (s.bossPhase === 'warning' && Math.floor(s.score) >= 510) {
           s.bossPhase = 'entering';
+          s.bossEnterTimer = 0;
         }
         if (s.bossPhase !== 'none') {
-          // Animate rotation (0 → -10 deg when active, back to 0 when dead)
-          const rotTarget = s.bossPhase === 'dead' ? 0 : -10;
-          if (s.bossRotation < rotTarget) s.bossRotation = Math.min(rotTarget, s.bossRotation + 0.5);
-          else if (s.bossRotation > rotTarget) s.bossRotation = Math.max(rotTarget, s.bossRotation - 0.5);
-          // Animate cinematic letterbox
-          const lbTarget = s.bossPhase === 'dead' ? 0 : 32;
-          if (s.bossLetterbox < lbTarget) s.bossLetterbox = Math.min(lbTarget, s.bossLetterbox + 1.5);
-          else if (s.bossLetterbox > lbTarget) s.bossLetterbox = Math.max(lbTarget, s.bossLetterbox - 1.5);
-          // Entering — slide boss in heavily and slowly
+          // Rotation + letterbox only during entering/fighting/dead (not during silence)
+          const rotTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? -10 : 0;
+          if (s.bossRotation < rotTarget) s.bossRotation = Math.min(rotTarget, s.bossRotation + 0.8);
+          else if (s.bossRotation > rotTarget) s.bossRotation = Math.max(rotTarget, s.bossRotation - 0.8);
+          const lbTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? 32 : 0;
+          if (s.bossLetterbox < lbTarget) s.bossLetterbox = Math.min(lbTarget, s.bossLetterbox + 2);
+          else if (s.bossLetterbox > lbTarget) s.bossLetterbox = Math.max(lbTarget, s.bossLetterbox - 2);
+          // Entering — quick but heavy slide
           if (s.bossPhase === 'entering') {
-            s.bossX = Math.max(BOSS_FINAL_X, s.bossX - 1.5);
+            s.bossEnterTimer++;
+            s.bossX = Math.max(BOSS_FINAL_X, s.bossX - 12);
             if (s.bossX <= BOSS_FINAL_X) s.bossPhase = 'fighting';
           }
           // Fighting — fire angled white beams at Pat starting at score 520
@@ -790,7 +797,7 @@ export default function GamePage() {
       }
 
       // ── Boss drawing ──────────────────────────────────────────────────────
-      if (s.bossPhase !== 'none') {
+      if (s.bossPhase === 'entering' || s.bossPhase === 'fighting' || s.bossPhase === 'dead') {
         // Red cinematic dim — intensity tied to rotation progress
         const dimAlpha = Math.min(0.4, (Math.abs(s.bossRotation) / 10) * 0.4);
         ctx.save();
@@ -801,7 +808,7 @@ export default function GamePage() {
 
         // Boss machine
         const bImg = bossImgRef.current;
-        if (bImg && bImg.complete && bImg.naturalWidth && s.bossPhase !== 'warning') {
+        if (bImg && bImg.complete && bImg.naturalWidth) {
           ctx.drawImage(bImg, s.bossX, GROUND - BOSS_H, BOSS_W, BOSS_H);
         }
 
@@ -882,21 +889,28 @@ export default function GamePage() {
         patImg.style.opacity = s.invincible > 0 && Math.floor(s.invincible / 8) % 2 === 0 ? '0.3' : '1';
       }
 
-      // Kasey levitation
+      // Kasey levitation — hidden during boss phases
       const kaseyImg = kaseyImgRef.current;
       if (kaseyImg) {
-        const kaseyX = W - PAT_W - 40;
-        const kaseyBaseY = GROUND - PAT_H - 80;
-        const kaseyY = kaseyBaseY + Math.sin(s.frame * 0.06) * 5;
-        kaseyImg.style.left = `${cx(kaseyX + s.kaseyOffX)}px`;
-        kaseyImg.style.top = `${cy(kaseyY)}px`;
-        kaseyImg.style.width = `${PAT_W * scale}px`;
-        kaseyImg.style.height = `${PAT_H * scale}px`;
+        if (s.bossPhase !== 'none') {
+          kaseyImg.style.display = 'none';
+        } else {
+          kaseyImg.style.display = '';
+          const kaseyX = W - PAT_W - 40;
+          const kaseyBaseY = GROUND - PAT_H - 80;
+          const kaseyY = kaseyBaseY + Math.sin(s.frame * 0.06) * 5;
+          kaseyImg.style.left = `${cx(kaseyX + s.kaseyOffX)}px`;
+          kaseyImg.style.top = `${cy(kaseyY)}px`;
+          kaseyImg.style.width = `${PAT_W * scale}px`;
+          kaseyImg.style.height = `${PAT_H * scale}px`;
+        }
       }
 
-      // Mark overlay
+      // Mark overlay — hidden during boss phases
       const markImg = markImgRef.current;
-      if (markImg && s.markActive) {
+      if (markImg && s.markActive && s.bossPhase !== 'none') {
+        markImg.style.display = 'none';
+      } else if (markImg && s.markActive) {
         markImg.style.display = 'block';
         markImg.style.left = `${cx(s.markX + s.markOffX)}px`;
         markImg.style.top = `${cy(GROUND - PAT_H)}px`;
@@ -1055,7 +1069,14 @@ export default function GamePage() {
       if (letterboxTopRef.current) letterboxTopRef.current.style.height = lbPct;
       if (letterboxBotRef.current) letterboxBotRef.current.style.height = lbPct;
       if (bossWarningRef.current) {
-        bossWarningRef.current.style.display = s.bossPhase === 'warning' ? 'block' : 'none';
+        const t = s.bossEnterTimer;
+        if (s.bossPhase === 'entering' && t < 90) {
+          bossWarningRef.current.style.display = 'block';
+          const op = t < 20 ? t / 20 : t > 70 ? (90 - t) / 20 : 1;
+          bossWarningRef.current.style.opacity = String(Math.max(0, Math.min(1, op)));
+        } else {
+          bossWarningRef.current.style.display = 'none';
+        }
       }
 
       if (s.paused) {
