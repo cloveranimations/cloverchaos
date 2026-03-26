@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSession, signIn } from 'next-auth/react';
 import Navigation from '@/app/Navigation';
 import AnimatedBackground from '@/app/AnimatedBackground';
 
@@ -18,6 +19,25 @@ const BOSS_W = 380;
 const BOSS_H = 380;
 const BOSS_FINAL_X = W - BOSS_W;
 
+// Progressive crack segments in local boss coords (0,0 = boss top-left). dmg = hits taken to reveal.
+const BOSS_CRACKS = [
+  { x1: 190, y1: 190, x2: 225, y2: 125, dmg: 1 },
+  { x1: 190, y1: 190, x2: 152, y2: 238, dmg: 1 },
+  { x1: 225, y1: 125, x2: 262, y2: 88,  dmg: 2 },
+  { x1: 152, y1: 238, x2: 112, y2: 272, dmg: 2 },
+  { x1: 190, y1: 190, x2: 218, y2: 248, dmg: 2 },
+  { x1: 262, y1: 88,  x2: 298, y2: 58,  dmg: 3 },
+  { x1: 112, y1: 272, x2: 78,  y2: 308, dmg: 3 },
+  { x1: 218, y1: 248, x2: 252, y2: 292, dmg: 3 },
+  { x1: 190, y1: 190, x2: 147, y2: 152, dmg: 3 },
+  { x1: 298, y1: 58,  x2: 328, y2: 44,  dmg: 4 },
+  { x1: 78,  y1: 308, x2: 52,  y2: 338, dmg: 4 },
+  { x1: 252, y1: 292, x2: 278, y2: 338, dmg: 4 },
+  { x1: 147, y1: 152, x2: 108, y2: 118, dmg: 4 },
+  { x1: 190, y1: 190, x2: 175, y2: 298, dmg: 4 },
+  { x1: 175, y1: 298, x2: 160, y2: 362, dmg: 4 },
+];
+
 const BG_SRCS = [
   'https://i.imgur.com/wyARKng.png',
   'https://i.imgur.com/TF9aiOa.png',
@@ -32,6 +52,12 @@ type Obstacle = { x: number; w: number; h: number; type: number };
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { data: session } = useSession();
+  const sessionRef = useRef<typeof session>(null);
+  const scoreSubmittedRef = useRef(false);
+  const [leaderboard, setLeaderboard] = useState<{ name: string; image: string; score: number; email: string }[]>([]);
+  const refreshLbRef = useRef<() => void>(() => {});
+
   const patImgRef = useRef<HTMLImageElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const bgImgsRef = useRef<HTMLImageElement[]>([]);
@@ -126,6 +152,7 @@ export default function GamePage() {
     bossShakeY: 0,
     bossFragments: [] as { sx: number; sy: number; sw: number; sh: number; dw: number; dh: number; x: number; y: number; vx: number; vy: number; rot: number; rotSpd: number; alpha: number }[],
     bossFragmentsSpawned: false,
+    bossHitSparks: [] as { x: number; y: number; vx: number; vy: number; alpha: number; size: number }[],
   });
   const rafRef = useRef<number>(0);
 
@@ -199,6 +226,8 @@ export default function GamePage() {
     s.bossShakeY = 0;
     s.bossFragments = [];
     s.bossFragmentsSpawned = false;
+    s.bossHitSparks = [];
+    scoreSubmittedRef.current = false;
     s.speed = OBSTACLE_SPEED_START;
     s.frame = 0;
     s.bgX = 0;
@@ -217,6 +246,19 @@ export default function GamePage() {
     if (stopMusicFnRef.current) stopMusicFnRef.current();
     if (ac && ac.state === 'suspended') ac.resume();
   }
+
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
+  useEffect(() => {
+    const refresh = () => {
+      fetch('/api/game-scores')
+        .then(r => r.json())
+        .then(d => setLeaderboard(Array.isArray(d) ? d : []))
+        .catch(() => {});
+    };
+    refreshLbRef.current = refresh;
+    refresh();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -664,6 +706,9 @@ export default function GamePage() {
               }
             }
           }
+          // Update hit sparks
+          for (const sp of s.bossHitSparks) { sp.x += sp.vx; sp.y += sp.vy; sp.vy += 0.3; sp.alpha -= 0.038; }
+          s.bossHitSparks = s.bossHitSparks.filter(sp => sp.alpha > 0);
           // Update fragments physics each frame
           for (const f of s.bossFragments) {
             f.x += f.vx; f.y += f.vy;
@@ -745,6 +790,12 @@ export default function GamePage() {
           if (s.beam && s.beam.target === 'boss' && s.bossPhase === 'fighting') {
             if (s.beam.x > s.bossX && s.beam.x < s.bossX + BOSS_W && s.beam.y > GROUND - BOSS_H && s.beam.y < GROUND) {
               s.bossHealth--;
+              // Hit sparks at impact point
+              for (let i = 0; i < 14; i++) {
+                const ang = Math.random() * Math.PI * 2;
+                const spd = 5 + Math.random() * 9;
+                s.bossHitSparks.push({ x: s.beam.x, y: s.beam.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 2, alpha: 1, size: 2 + Math.random() * 3.5 });
+              }
               s.beam = null;
               if (s.bossHealth <= 0) { s.bossPhase = 'dying'; s.bossDeathTimer = 0; s.bossBeams = []; }
             }
@@ -889,6 +940,34 @@ export default function GamePage() {
         const bImg = bossImgRef.current;
         if (bImg && bImg.complete && bImg.naturalWidth && !s.bossFragmentsSpawned) {
           ctx.drawImage(bImg, s.bossX + s.bossShakeX, GROUND - BOSS_H + s.bossShakeY, BOSS_W, BOSS_H);
+        }
+        // Progressive cracks based on damage
+        const dmg = Math.max(0, 5 - s.bossHealth);
+        if (dmg > 0 && !s.bossFragmentsSpawned) {
+          ctx.save();
+          ctx.lineCap = 'round';
+          ctx.shadowColor = 'rgba(255,120,0,0.9)';
+          ctx.shadowBlur = 6;
+          for (const c of BOSS_CRACKS) {
+            if (c.dmg > dmg) continue;
+            ctx.strokeStyle = `rgba(255,215,130,${0.55 + c.dmg * 0.1})`;
+            ctx.lineWidth = Math.max(0.8, 2.8 - c.dmg * 0.45);
+            ctx.beginPath();
+            ctx.moveTo(s.bossX + c.x1, GROUND - BOSS_H + c.y1);
+            ctx.lineTo(s.bossX + c.x2, GROUND - BOSS_H + c.y2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+        // Hit sparks
+        for (const sp of s.bossHitSparks) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, sp.alpha);
+          ctx.fillStyle = sp.alpha > 0.5 ? '#ffffff' : '#ffaa44';
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         }
         // Shatter fragments
         if (bImg && s.bossFragments.length > 0) {
@@ -1158,6 +1237,18 @@ export default function GamePage() {
         ctx.font = '14px monospace';
         ctx.fillText('Press SPACE or tap to retry', W / 2, H / 2 + 50);
         ctx.textAlign = 'left';
+        // Submit score once on death
+        if (!scoreSubmittedRef.current) {
+          scoreSubmittedRef.current = true;
+          const sess = sessionRef.current;
+          if (sess?.user && Math.floor(s.score) > 0) {
+            fetch('/api/game-scores', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ score: Math.floor(s.score) }),
+            }).then(() => refreshLbRef.current()).catch(() => {});
+          }
+        }
       }
 
       if (pauseRestartBtnRef.current) {
@@ -1332,6 +1423,45 @@ export default function GamePage() {
           <div className="game-controls" style={{ marginTop: '16px', display: 'flex', gap: '24px', fontFamily: 'var(--font-mono)', fontSize: '13px', color: '#475569' }}>
             <span>SPACE / ↑ — jump</span>
             <span>TAP — jump on mobile</span>
+          </div>
+
+          {/* Leaderboard */}
+          <div style={{ marginTop: '40px', maxWidth: W, fontFamily: 'var(--font-mono)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div>
+                <span style={{ fontSize: '11px', letterSpacing: '2px', color: '#4ade80', textTransform: 'uppercase' }}>Leaderboard</span>
+                <h2 style={{ fontSize: '22px', color: '#4ade80', margin: '4px 0 0' }}>Top Scores</h2>
+              </div>
+              {!session ? (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => signIn('google')} style={{ background: 'rgba(0,0,0,0.85)', border: '2px solid #4ade80', color: '#4ade80', fontFamily: 'monospace', fontSize: '11px', padding: '6px 14px', cursor: 'pointer', letterSpacing: '1px' }}>Sign in with Google</button>
+                  <button onClick={() => signIn('discord')} style={{ background: 'rgba(0,0,0,0.85)', border: '2px solid #4ade80', color: '#4ade80', fontFamily: 'monospace', fontSize: '11px', padding: '6px 14px', cursor: 'pointer', letterSpacing: '1px' }}>Sign in with Discord</button>
+                </div>
+              ) : (
+                <span style={{ fontSize: '12px', color: '#475569' }}>Signed in as <span style={{ color: '#4ade80' }}>{session.user?.name}</span></span>
+              )}
+            </div>
+            {leaderboard.length === 0 ? (
+              <p style={{ color: '#475569', fontSize: '13px' }}>No scores yet — be the first!</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {leaderboard.map((entry, i) => (
+                  <div key={entry.email} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: i === 0 ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${i === 0 ? 'rgba(74,222,128,0.35)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '6px' }}>
+                    <span style={{ width: '24px', textAlign: 'right', color: i === 0 ? '#4ade80' : '#475569', fontSize: '13px', fontWeight: 'bold' }}>#{i + 1}</span>
+                    {entry.image ? (
+                      <img src={entry.image} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1e3a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '12px' }}>{entry.name[0]}</div>
+                    )}
+                    <span style={{ flex: 1, color: '#e2e8f0', fontSize: '13px' }}>{entry.name}</span>
+                    <span style={{ color: i === 0 ? '#4ade80' : '#94a3b8', fontSize: '14px', fontWeight: 'bold', letterSpacing: '1px' }}>{entry.score.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!session && (
+              <p style={{ marginTop: '12px', fontSize: '12px', color: '#475569' }}>Sign in to save your score to the leaderboard.</p>
+            )}
           </div>
         </div>
       </section>
