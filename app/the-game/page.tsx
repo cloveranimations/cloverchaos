@@ -947,33 +947,33 @@ export default function GamePage() {
               alt="Mark"
               style={{ position: 'absolute', imageRendering: 'pixelated', pointerEvents: 'none', display: 'none' }}
             />
-            <button
-              onClick={(e) => { e.stopPropagation(); togglePause(); }}
-              style={{
-                position: 'absolute', top: '10px', right: '10px', zIndex: 10,
-                background: 'rgba(0,0,0,0.85)', border: '2px solid #4ade80',
-                color: '#4ade80', fontFamily: 'monospace', fontSize: '11px',
-                padding: '4px 10px', borderRadius: 0, cursor: 'pointer',
-                letterSpacing: '2px', textTransform: 'uppercase',
-                boxShadow: '2px 2px 0px #1a6b3a',
-              }}
-            >
-              II
-            </button>
-            <button
-              ref={fullscreenBtnRef}
-              onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
-              style={{
-                position: 'absolute', top: '10px', right: '62px', zIndex: 10,
-                background: 'rgba(0,0,0,0.85)', border: '2px solid #4ade80',
-                color: '#4ade80', fontFamily: 'monospace', fontSize: '11px',
-                padding: '4px 10px', borderRadius: 0, cursor: 'pointer',
-                letterSpacing: '2px', textTransform: 'uppercase',
-                boxShadow: '2px 2px 0px #1a6b3a',
-              }}
-            >
-              Full
-            </button>
+            <div style={{ position: 'absolute', top: '12%', left: '1%', zIndex: 10, display: 'flex', gap: '4px' }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); togglePause(); }}
+                style={{
+                  background: 'rgba(0,0,0,0.85)', border: '2px solid #4ade80',
+                  color: '#4ade80', fontFamily: 'monospace', fontSize: '11px',
+                  padding: '4px 10px', borderRadius: 0, cursor: 'pointer',
+                  letterSpacing: '2px', textTransform: 'uppercase',
+                  boxShadow: '2px 2px 0px #1a6b3a',
+                }}
+              >
+                II
+              </button>
+              <button
+                ref={fullscreenBtnRef}
+                onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+                style={{
+                  background: 'rgba(0,0,0,0.85)', border: '2px solid #4ade80',
+                  color: '#4ade80', fontFamily: 'monospace', fontSize: '11px',
+                  padding: '4px 10px', borderRadius: 0, cursor: 'pointer',
+                  letterSpacing: '2px', textTransform: 'uppercase',
+                  boxShadow: '2px 2px 0px #1a6b3a',
+                }}
+              >
+                Full
+              </button>
+            </div>
             <button
               ref={pauseRestartBtnRef}
               onClick={(e) => { e.stopPropagation(); restart(); }}
