@@ -225,7 +225,7 @@ export default function GamePage() {
 
     const mdIcon = new Image();
     mdIcon.crossOrigin = 'anonymous';
-    mdIcon.src = 'https://i.imgur.com/0FqCfrV.png';
+    mdIcon.src = 'https://i.imgur.com/3BZHgvO.png';
     markDialogIconRef.current = mdIcon;
 
     // Setup Web Audio with 16-bit bitcrusher effect
