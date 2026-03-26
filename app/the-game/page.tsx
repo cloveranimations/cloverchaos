@@ -743,7 +743,7 @@ export default function GamePage() {
         const BOX_H = 72;
         const BANNER_H = 18;
         const ICON_SIZE = 48;
-        const bw = 400;
+        const bw = 560;
         const bx = (W - bw) / 2;
         const by = 6 - d.slideY; // slides from above canvas down to y=6
 
@@ -950,9 +950,11 @@ export default function GamePage() {
               onClick={(e) => { e.stopPropagation(); togglePause(); }}
               style={{
                 position: 'absolute', top: '10px', right: '10px', zIndex: 10,
-                background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(74,222,128,0.5)',
-                color: '#4ade80', fontFamily: 'var(--font-mono)', fontSize: '13px',
-                padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', letterSpacing: '1px',
+                background: 'rgba(0,0,0,0.85)', border: '2px solid #4ade80',
+                color: '#4ade80', fontFamily: 'monospace', fontSize: '11px',
+                padding: '4px 10px', borderRadius: 0, cursor: 'pointer',
+                letterSpacing: '2px', textTransform: 'uppercase',
+                boxShadow: '2px 2px 0px #1a6b3a',
               }}
             >
               II
@@ -961,10 +963,12 @@ export default function GamePage() {
               ref={fullscreenBtnRef}
               onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
               style={{
-                position: 'absolute', top: '10px', right: '66px', zIndex: 10,
-                background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(74,222,128,0.5)',
-                color: '#4ade80', fontFamily: 'var(--font-mono)', fontSize: '13px',
-                padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', letterSpacing: '1px',
+                position: 'absolute', top: '10px', right: '62px', zIndex: 10,
+                background: 'rgba(0,0,0,0.85)', border: '2px solid #4ade80',
+                color: '#4ade80', fontFamily: 'monospace', fontSize: '11px',
+                padding: '4px 10px', borderRadius: 0, cursor: 'pointer',
+                letterSpacing: '2px', textTransform: 'uppercase',
+                boxShadow: '2px 2px 0px #1a6b3a',
               }}
             >
               Full
@@ -976,9 +980,11 @@ export default function GamePage() {
                 position: 'absolute', top: '50%', left: '50%', zIndex: 11,
                 transform: 'translate(-50%, 32px)',
                 display: 'none',
-                background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(74,222,128,0.6)',
-                color: '#4ade80', fontFamily: 'var(--font-mono)', fontSize: '14px',
-                padding: '8px 28px', borderRadius: '6px', cursor: 'pointer', letterSpacing: '1px',
+                background: 'rgba(0,0,0,0.92)', border: '2px solid #4ade80',
+                color: '#4ade80', fontFamily: 'monospace', fontSize: '13px',
+                padding: '8px 28px', borderRadius: 0, cursor: 'pointer',
+                letterSpacing: '3px', textTransform: 'uppercase',
+                boxShadow: '3px 3px 0px #1a6b3a',
               }}
             >
               Restart
