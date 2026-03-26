@@ -291,7 +291,6 @@ export default function Home() {
       </section>
 
       {/* EPISODES SECTION */}
-      <style>{`.ep-scroll::-webkit-scrollbar { display: none; } .ep-scroll { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
       <section id="episodes" style={{ padding: '100px 20px', position: 'relative', overflow: 'hidden' }}>
         {/* Video background */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', backgroundImage: 'url(https://img.youtube.com/vi/zXVoG3z8CMo/maxresdefault.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(4px)', transform: 'scale(1.05)' }} />
