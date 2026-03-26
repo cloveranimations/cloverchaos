@@ -510,6 +510,7 @@ export default function GamePage() {
           if (PAT_X + PAT_W > p.x + 4 && PAT_X < p.x + 44 && s.patY + PAT_H > p.y + 4) {
             s.powerUps.splice(i, 1);
             s.health = 3;
+            s.invincible = 120;
             s.patGlow = 40;
             // Fire beam at random available target
             const targets: string[] = [];
