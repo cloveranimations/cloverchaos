@@ -743,8 +743,8 @@ export default function GamePage() {
         const BOX_H = 72;
         const BANNER_H = 18;
         const ICON_SIZE = 48;
-        const bx = 12;
         const bw = 400;
+        const bx = (W - bw) / 2;
         const by = 6 - d.slideY; // slides from above canvas down to y=6
 
         // Shadow
