@@ -324,14 +324,10 @@ export default function Home() {
           </AnimatedElement>
 
           <div
-            className="ep-scroll"
             style={{
-              display: 'flex',
-              gap: '20px',
-              overflowX: 'auto',
-              paddingBottom: '12px',
-              scrollSnapType: 'x mandatory',
-              WebkitOverflowScrolling: 'touch',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '24px',
             }}
           >
             {episodes.map((ep, idx) => (
@@ -345,10 +341,7 @@ export default function Home() {
                     backgroundImage: `url(${ep.thumbnail})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    flex: '0 0 280px',
-                    width: '280px',
-                    height: '280px',
-                    scrollSnapAlign: 'start',
+                    height: '320px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'flex-end',
