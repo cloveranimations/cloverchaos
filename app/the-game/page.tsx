@@ -454,6 +454,15 @@ export default function GamePage() {
         if (s.bgX <= -W) s.bgX += W;
       }
 
+      // Apply gameplay tilt+zoom during boss (canvas content only, not UI)
+      if (s.bossRotation !== 0) {
+        ctx.save();
+        ctx.translate(W / 2, H / 2);
+        ctx.rotate(s.bossRotation * Math.PI / 180);
+        ctx.scale(1.1, 1.1);
+        ctx.translate(-W / 2, -H / 2);
+      }
+
       // Draw scrolling backgrounds — crossfade between scenes at milestones
       if (s.fading) {
         drawBg(bgs[prevIndex], 1);
@@ -551,8 +560,10 @@ export default function GamePage() {
           s.bossTriggered = true;
           s.bossPhase = 'warning';
           s.dialogue = null;
-          // Silence before the storm — clear everything
+          // Silence before the storm — clear everything immediately
           s.obstacles = []; s.fireballs = []; s.drones = []; s.beam = null;
+          if (kaseyImgRef.current) kaseyImgRef.current.style.display = 'none';
+          if (markImgRef.current) markImgRef.current.style.display = 'none';
         }
         if (s.bossPhase === 'warning' && Math.floor(s.score) >= 510) {
           s.bossPhase = 'entering';
@@ -882,11 +893,22 @@ export default function GamePage() {
 
       // Move Pat GIF overlay
       if (patImg) {
-        patImg.style.left = `${cx(PAT_X)}px`;
-        patImg.style.top = `${cy(s.patY)}px`;
+        const patLeft = cx(PAT_X);
+        const patTop = cy(s.patY);
+        patImg.style.left = `${patLeft}px`;
+        patImg.style.top = `${patTop}px`;
         patImg.style.width = `${PAT_W * scale}px`;
         patImg.style.height = `${PAT_H * scale}px`;
         patImg.style.opacity = s.invincible > 0 && Math.floor(s.invincible / 8) % 2 === 0 ? '0.3' : '1';
+        if (s.bossRotation !== 0) {
+          const pivotX = (cLeft + (W / 2) * scale) - patLeft;
+          const pivotY = (cTop + (H / 2) * scale) - patTop;
+          patImg.style.transformOrigin = `${pivotX}px ${pivotY}px`;
+          patImg.style.transform = `rotate(${s.bossRotation}deg) scale(1.1)`;
+        } else {
+          patImg.style.transform = '';
+          patImg.style.transformOrigin = '';
+        }
       }
 
       // Kasey levitation — hidden during boss phases
@@ -990,6 +1012,9 @@ export default function GamePage() {
         ctx.textAlign = 'left';
       }
 
+      // Restore canvas from gameplay tilt before drawing UI
+      if (s.bossRotation !== 0) ctx.restore();
+
       // Health bar (top left)
       const iconSize = 28;
       const barW = 90;
@@ -1060,11 +1085,7 @@ export default function GamePage() {
         pauseRestartBtnRef.current.style.display = s.paused ? 'block' : 'none';
       }
 
-      // Boss overlay updates (wrapper rotation, letterbox, warning sign)
-      if (wrapper) {
-        wrapper.style.transform = s.bossPhase !== 'none' ? `rotate(${s.bossRotation}deg)` : '';
-        wrapper.style.transition = 'transform 0.3s ease';
-      }
+      // Boss overlay updates (letterbox, warning sign)
       const lbPct = (s.bossLetterbox / H * 100).toFixed(2) + '%';
       if (letterboxTopRef.current) letterboxTopRef.current.style.height = lbPct;
       if (letterboxBotRef.current) letterboxBotRef.current.style.height = lbPct;
@@ -1120,7 +1141,10 @@ export default function GamePage() {
           </div>
 
           <div ref={bossOuterRef} style={{ position: 'relative', width: '100%', maxWidth: W }}>
-            {/* Warning sign — stays upright outside the rotating wrapper */}
+            {/* Static cinematic letterbox bars — outside wrapper, don't tilt */}
+            <div ref={letterboxTopRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 25, pointerEvents: 'none' }} />
+            <div ref={letterboxBotRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 25, pointerEvents: 'none' }} />
+            {/* Warning sign — static, outside wrapper */}
             <div
               ref={bossWarningRef}
               style={{
@@ -1135,9 +1159,6 @@ export default function GamePage() {
             className="game-wrapper"
             style={{ position: 'relative', width: '100%', borderRadius: 12, overflow: 'hidden', border: '2px solid rgba(74,222,128,0.3)', boxShadow: '0 0 40px rgba(74,222,128,0.1)' }}
           >
-            {/* Cinematic letterbox bars — inside wrapper so they tilt with the game */}
-            <div ref={letterboxTopRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 20, pointerEvents: 'none' }} />
-            <div ref={letterboxBotRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 20, pointerEvents: 'none' }} />
             <canvas
               ref={canvasRef}
               width={W}
