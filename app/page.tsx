@@ -645,7 +645,7 @@ export default function Home() {
                 (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(74, 222, 128, 0.3)';
               }}
             >
-              ▶ Subscribe on YouTube
+              Subscribe on YouTube
             </a>
           </AnimatedElement>
         </div>
@@ -667,15 +667,17 @@ export default function Home() {
         <p style={{ marginBottom: '16px' }}>&copy; {new Date().getFullYear()} Clover Chaos — Made with chaos &amp; chlorophyll</p>
         <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', flexWrap: 'wrap' }}>
           {[
-            { label: 'YouTube', href: 'https://www.youtube.com/@cloverranimations' },
-            { label: 'See More', href: 'https://cloveranimations.carrd.co/' },
-            { label: 'Know More', href: 'https://clover-chaos.fandom.com/wiki/Clover_Chaos_Wiki' },
+            { label: 'YouTube', href: 'https://www.youtube.com/@cloverranimations', external: true },
+            { label: 'See More', href: 'https://cloveranimations.carrd.co/', external: true },
+            { label: 'Know More', href: 'https://clover-chaos.fandom.com/wiki/Clover_Chaos_Wiki', external: true },
+            { label: 'Terms of Service', href: '/terms', external: false },
+            { label: 'Privacy Policy', href: '/privacy', external: false },
           ].map((link) => (
             <a
               key={link.label}
               href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={link.external ? '_blank' : '_self'}
+              rel={link.external ? 'noopener noreferrer' : undefined}
               style={{ color: '#64748b', transition: 'color 0.3s ease' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#4ade80'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748b'; }}

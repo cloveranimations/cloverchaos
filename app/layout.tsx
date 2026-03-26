@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Providers from './Providers';
 
 export const metadata: Metadata = {
   title: 'Clover Chaos | Indie Animated Series',
@@ -35,7 +36,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#0f172a" />
       </head>
       <body>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

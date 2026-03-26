@@ -53,14 +53,14 @@ export default function Navigation() {
 
         {/* Desktop Menu */}
         <div className="hide-mobile" style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-          {['About', 'Episodes', 'Characters', 'Articles', 'Subscribe'].map((item) => (
+          {['About', 'Episodes', 'Characters', 'Articles', 'Discussion', 'The Game', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={`/${item.toLowerCase()}`}
+              href={`/${item.toLowerCase().replace(/\s+/g, '-')}`}
               style={{
-                color: '#e2e8f0',
+                color: item === 'The Game' ? '#4ade80' : '#e2e8f0',
                 fontSize: '14px',
-                fontWeight: '500',
+                fontWeight: item === 'The Game' ? '700' : '500',
                 letterSpacing: '0.5px',
                 position: 'relative',
                 transition: 'color 0.3s ease',
@@ -69,7 +69,7 @@ export default function Navigation() {
                 e.currentTarget.style.color = '#4ade80';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#e2e8f0';
+                e.currentTarget.style.color = item === 'The Game' ? '#4ade80' : '#e2e8f0';
               }}
             >
               {item}
@@ -105,10 +105,10 @@ export default function Navigation() {
           }}
           className="show-mobile"
         >
-          {['About', 'Episodes', 'Characters', 'Articles', 'Subscribe'].map((item) => (
+          {['About', 'Episodes', 'Characters', 'Articles', 'Discussion', 'The Game', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={`/${item.toLowerCase()}`}
+              href={`/${item.toLowerCase().replace(/\s+/g, '-')}`}
               onClick={() => setMobileOpen(false)}
               style={{ color: '#4ade80', fontSize: '14px' }}
             >
