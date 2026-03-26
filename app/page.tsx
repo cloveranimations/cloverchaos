@@ -105,6 +105,9 @@ const episodes = [
     url: '',
     thumbnail: 'https://i.imgur.com/MzqfAE6.png',
   },
+  { num: '06', title: 'Death over Deal', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
+  { num: '07', title: 'Catalyst', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
+  { num: '08', title: 'Clover Chaos', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
 ];
 
 const mainCast = [
@@ -338,7 +341,8 @@ export default function Home() {
                     position: 'relative',
                     overflow: 'hidden',
                     cursor: 'pointer',
-                    backgroundImage: `url(${ep.thumbnail})`,
+                    backgroundImage: ep.thumbnail ? `url(${ep.thumbnail})` : 'none',
+                    backgroundColor: ep.thumbnail ? 'transparent' : '#0f172a',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     height: '320px',

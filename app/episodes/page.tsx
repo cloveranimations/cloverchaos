@@ -33,6 +33,9 @@ const episodes = [
   { num: '03', title: 'Back To Reality', desc: 'The "Satirical" tone takes a backseat to "Mystery" and "Lore" in this pivotal episode. A massive tear in reality occurs, leading to the arrival of the Interdimensional Being. The trio finds themselves caught in a three-way conflict between their summer goals, the Father\'s madness, and this new cosmic entity.', duration: '41:36', tags: ['COMEDY', 'RACE'], url: 'https://youtu.be/3AxVSqjbE0s?list=PL_buqz0LdeD57LW39dn6W8SW-IpZi-4Hc', thumbnail: 'https://img.youtube.com/vi/3AxVSqjbE0s/maxresdefault.jpg' },
   { num: '04', title: 'A Fading Shamrock', desc: "The team successfully fends off the Father's immediate threat, but at a great cost to their anonymity. The Interdimensional Being delivers a final warning before vanishing, setting the stage for Phase 2.", duration: '39:54', tags: ['DRAMA', 'REVEAL'], url: 'https://youtu.be/K3Da51RfROM?list=PL_buqz0LdeD57LW39dn6W8SW-IpZi-4Hc', thumbnail: 'https://img.youtube.com/vi/K3Da51RfROM/maxresdefault.jpg' },
   { num: '05', title: 'Taradiddle', desc: 'Phase 2 begins. ████████ forces Pat and the team to ████████ in ways they never anticipated. A familiar face ██████████, and the truth behind ████████████ starts to ████████ itself. The rules have changed — and so has ████████.', duration: '--:--', tags: ['PHASE 2', 'COMING SOON'], url: '', thumbnail: 'https://i.imgur.com/MzqfAE6.png' },
+  { num: '06', title: 'Death over Deal', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
+  { num: '07', title: 'Catalyst', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
+  { num: '08', title: 'Clover Chaos', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
 ];
 
 export default function EpisodesPage() {
@@ -56,7 +59,7 @@ export default function EpisodesPage() {
               <AnimatedElement key={ep.num} delay={idx * 0.1}>
                 <div
                   className="card"
-                  style={{ position: 'relative', overflow: 'hidden', cursor: 'pointer', backgroundImage: `url(${ep.thumbnail})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0' }}
+                  style={{ position: 'relative', overflow: 'hidden', cursor: 'pointer', backgroundImage: ep.thumbnail ? `url(${ep.thumbnail})` : 'none', backgroundColor: ep.thumbnail ? 'transparent' : '#0f172a', backgroundSize: 'cover', backgroundPosition: 'center', height: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0', filter: ep.thumbnail ? 'none' : undefined }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74, 222, 128, 0.5)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(226, 232, 240, 0.1)'; }}
                 >
