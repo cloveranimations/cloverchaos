@@ -596,7 +596,7 @@ export default function GamePage() {
               const dist = Math.sqrt(dx * dx + dy * dy);
               const spd = 7;
               s.bossBeams.push({ x: startX, y: startY, vx: (dx / dist) * spd, vy: (dy / dist) * spd, angle: Math.atan2(dy, dx) });
-              s.bossBeamTimer = 18 + Math.floor(Math.random() * 22);
+              s.bossBeamTimer = 45 + Math.floor(Math.random() * 25);
             }
           }
           // Move boss beams + hit detection
@@ -1109,6 +1109,7 @@ export default function GamePage() {
           bossWarningRef.current.style.opacity = String(Math.max(0, Math.min(1, op)));
           // Scale pulse during strobe, then settle; always tilted -10deg (scale>=1.5 covers corners)
           const scl = t < 30 ? (1.55 + 0.06 * (1 - t / 30)) : 1.5;
+          bossWarningRef.current.style.transformOrigin = '50% 50%';
           bossWarningRef.current.style.transform = `rotate(-10deg) scale(${scl.toFixed(3)})`;
         } else {
           bossWarningRef.current.style.display = 'none';
@@ -1242,7 +1243,7 @@ export default function GamePage() {
             <div
               ref={bossWarningRef}
               style={{
-                display: 'none', position: 'absolute', inset: 0, zIndex: 22,
+                display: 'none', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 22,
                 backgroundImage: 'url(https://i.imgur.com/5SXVpUj.png)',
                 backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center', pointerEvents: 'none',
