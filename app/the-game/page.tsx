@@ -19,23 +19,39 @@ const BOSS_W = 380;
 const BOSS_H = 380;
 const BOSS_FINAL_X = W - BOSS_W;
 
-// Progressive crack segments in local boss coords (0,0 = boss top-left). dmg = hits taken to reveal.
+// Minecraft-style pixel cracks — tight, dark, centered on boss chest. dmg = hits taken.
 const BOSS_CRACKS = [
-  { x1: 190, y1: 190, x2: 225, y2: 125, dmg: 1 },
-  { x1: 190, y1: 190, x2: 152, y2: 238, dmg: 1 },
-  { x1: 225, y1: 125, x2: 262, y2: 88,  dmg: 2 },
-  { x1: 152, y1: 238, x2: 112, y2: 272, dmg: 2 },
-  { x1: 190, y1: 190, x2: 218, y2: 248, dmg: 2 },
-  { x1: 262, y1: 88,  x2: 298, y2: 58,  dmg: 3 },
-  { x1: 112, y1: 272, x2: 78,  y2: 308, dmg: 3 },
-  { x1: 218, y1: 248, x2: 252, y2: 292, dmg: 3 },
-  { x1: 190, y1: 190, x2: 147, y2: 152, dmg: 3 },
-  { x1: 298, y1: 58,  x2: 328, y2: 44,  dmg: 4 },
-  { x1: 78,  y1: 308, x2: 52,  y2: 338, dmg: 4 },
-  { x1: 252, y1: 292, x2: 278, y2: 338, dmg: 4 },
-  { x1: 147, y1: 152, x2: 108, y2: 118, dmg: 4 },
-  { x1: 190, y1: 190, x2: 175, y2: 298, dmg: 4 },
-  { x1: 175, y1: 298, x2: 160, y2: 362, dmg: 4 },
+  // dmg 1 — tiny central fracture
+  { x1: 190, y1: 212, x2: 203, y2: 200, dmg: 1 },
+  { x1: 190, y1: 212, x2: 178, y2: 222, dmg: 1 },
+  { x1: 190, y1: 212, x2: 198, y2: 226, dmg: 1 },
+  { x1: 190, y1: 212, x2: 180, y2: 200, dmg: 1 },
+  // dmg 2 — extends outward with branches
+  { x1: 203, y1: 200, x2: 214, y2: 190, dmg: 2 },
+  { x1: 203, y1: 200, x2: 213, y2: 204, dmg: 2 },
+  { x1: 178, y1: 222, x2: 166, y2: 231, dmg: 2 },
+  { x1: 198, y1: 226, x2: 207, y2: 238, dmg: 2 },
+  { x1: 198, y1: 226, x2: 193, y2: 241, dmg: 2 },
+  { x1: 180, y1: 200, x2: 170, y2: 192, dmg: 2 },
+  // dmg 3 — more arms, slight spread
+  { x1: 214, y1: 190, x2: 226, y2: 180, dmg: 3 },
+  { x1: 213, y1: 204, x2: 225, y2: 211, dmg: 3 },
+  { x1: 166, y1: 231, x2: 155, y2: 241, dmg: 3 },
+  { x1: 166, y1: 231, x2: 160, y2: 221, dmg: 3 },
+  { x1: 207, y1: 238, x2: 216, y2: 250, dmg: 3 },
+  { x1: 193, y1: 241, x2: 187, y2: 255, dmg: 3 },
+  { x1: 170, y1: 192, x2: 161, y2: 183, dmg: 3 },
+  { x1: 190, y1: 212, x2: 194, y2: 185, dmg: 3 },
+  // dmg 4 — heavy fracture network
+  { x1: 226, y1: 180, x2: 240, y2: 169, dmg: 4 },
+  { x1: 226, y1: 180, x2: 231, y2: 192, dmg: 4 },
+  { x1: 225, y1: 211, x2: 237, y2: 220, dmg: 4 },
+  { x1: 155, y1: 241, x2: 144, y2: 251, dmg: 4 },
+  { x1: 216, y1: 250, x2: 225, y2: 264, dmg: 4 },
+  { x1: 187, y1: 255, x2: 181, y2: 269, dmg: 4 },
+  { x1: 161, y1: 183, x2: 150, y2: 174, dmg: 4 },
+  { x1: 194, y1: 185, x2: 198, y2: 170, dmg: 4 },
+  { x1: 194, y1: 185, x2: 186, y2: 173, dmg: 4 },
 ];
 
 const BG_SRCS = [
@@ -941,21 +957,33 @@ export default function GamePage() {
         if (bImg && bImg.complete && bImg.naturalWidth && !s.bossFragmentsSpawned) {
           ctx.drawImage(bImg, s.bossX + s.bossShakeX, GROUND - BOSS_H + s.bossShakeY, BOSS_W, BOSS_H);
         }
-        // Progressive cracks based on damage
+        // Progressive cracks — dark pixel-style overlay on boss texture
         const dmg = Math.max(0, 5 - s.bossHealth);
         if (dmg > 0 && !s.bossFragmentsSpawned) {
           ctx.save();
-          ctx.lineCap = 'round';
-          ctx.shadowColor = 'rgba(255,120,0,0.9)';
-          ctx.shadowBlur = 6;
+          ctx.lineCap = 'butt';
+          // Subtle dark vignette around crack origin
+          const vgx = s.bossX + 190, vgy = GROUND - BOSS_H + 212;
+          const vgr = 30 + dmg * 18;
+          const vg = ctx.createRadialGradient(vgx, vgy, 0, vgx, vgy, vgr);
+          vg.addColorStop(0, `rgba(0,0,0,${dmg * 0.07})`);
+          vg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = vg;
+          ctx.fillRect(vgx - vgr, vgy - vgr, vgr * 2, vgr * 2);
+          // Crack lines: dark core + faint bright edge for depth
           for (const c of BOSS_CRACKS) {
             if (c.dmg > dmg) continue;
-            ctx.strokeStyle = `rgba(255,215,130,${0.55 + c.dmg * 0.1})`;
-            ctx.lineWidth = Math.max(0.8, 2.8 - c.dmg * 0.45);
-            ctx.beginPath();
-            ctx.moveTo(s.bossX + c.x1, GROUND - BOSS_H + c.y1);
-            ctx.lineTo(s.bossX + c.x2, GROUND - BOSS_H + c.y2);
-            ctx.stroke();
+            const bx = s.bossX, by = GROUND - BOSS_H;
+            const x1 = Math.round(bx + c.x1) + 0.5, y1 = Math.round(by + c.y1) + 0.5;
+            const x2 = Math.round(bx + c.x2) + 0.5, y2 = Math.round(by + c.y2) + 0.5;
+            // shadow crack
+            ctx.strokeStyle = 'rgba(8,4,2,0.88)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            // highlight edge (offset 1px) for pixel-crack depth illusion
+            ctx.strokeStyle = 'rgba(90,55,25,0.22)';
+            ctx.lineWidth = 0.5;
+            ctx.beginPath(); ctx.moveTo(x1 + 1, y1 + 1); ctx.lineTo(x2 + 1, y2 + 1); ctx.stroke();
           }
           ctx.restore();
         }
