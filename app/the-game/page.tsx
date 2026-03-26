@@ -124,6 +124,8 @@ export default function GamePage() {
     bossFlash: 0,
     bossShakeX: 0,
     bossShakeY: 0,
+    bossFragments: [] as { sx: number; sy: number; sw: number; sh: number; dw: number; dh: number; x: number; y: number; vx: number; vy: number; rot: number; rotSpd: number; alpha: number }[],
+    bossFragmentsSpawned: false,
   });
   const rafRef = useRef<number>(0);
 
@@ -195,6 +197,8 @@ export default function GamePage() {
     s.bossFlash = 0;
     s.bossShakeX = 0;
     s.bossShakeY = 0;
+    s.bossFragments = [];
+    s.bossFragmentsSpawned = false;
     s.speed = OBSTACLE_SPEED_START;
     s.frame = 0;
     s.bgX = 0;
@@ -618,7 +622,7 @@ export default function GamePage() {
           for (const b of s.bossBeams) {
             if (px + pw > b.x - 28 && px < b.x + 28 && py + ph > b.y - 12 && py < b.y + 12) takeDamage(2);
           }
-          // Dying — vibrate + white flash, then transition to dead
+          // Dying — vibrate + white flash + shatter, then transition to dead
           if (s.bossPhase === 'dying') {
             s.bossDeathTimer++;
             const t = s.bossDeathTimer;
@@ -628,7 +632,46 @@ export default function GamePage() {
             else if (t < 80)  s.bossFlash = 0.85 + (t - 60) / 20 * 0.15;
             else if (t < 115) s.bossFlash = 1 - (t - 80) / 35;
             else { s.bossFlash = 0; s.bossShakeX = 0; s.bossShakeY = 0; s.bossPhase = 'dead'; }
+            // Spawn fragments at peak flash (t=70)
+            if (t === 70 && !s.bossFragmentsSpawned) {
+              s.bossFragmentsSpawned = true;
+              const bImg2 = bossImgRef.current;
+              if (bImg2 && bImg2.naturalWidth) {
+                const cols = 6, rows = 6;
+                const nw = bImg2.naturalWidth, nh = bImg2.naturalHeight;
+                const fragDstW = BOSS_W / cols, fragDstH = BOSS_H / rows;
+                const cx = s.bossX + BOSS_W / 2, cy = GROUND - BOSS_H / 2;
+                for (let row = 0; row < rows; row++) {
+                  for (let col = 0; col < cols; col++) {
+                    const fx = s.bossX + col * fragDstW + fragDstW / 2;
+                    const fy = GROUND - BOSS_H + row * fragDstH + fragDstH / 2;
+                    const dx = fx - cx, dy = fy - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const spd = 5 + Math.random() * 9;
+                    s.bossFragments.push({
+                      sx: col * (nw / cols), sy: row * (nh / rows),
+                      sw: nw / cols, sh: nh / rows,
+                      dw: fragDstW, dh: fragDstH,
+                      x: fx, y: fy,
+                      vx: (dx / dist) * spd + (Math.random() - 0.5) * 5,
+                      vy: (dy / dist) * spd + (Math.random() - 0.5) * 5 - 3,
+                      rot: Math.random() * Math.PI * 2,
+                      rotSpd: (Math.random() - 0.5) * 0.22,
+                      alpha: 1,
+                    });
+                  }
+                }
+              }
+            }
           }
+          // Update fragments physics each frame
+          for (const f of s.bossFragments) {
+            f.x += f.vx; f.y += f.vy;
+            f.vy += 0.35;
+            f.rot += f.rotSpd;
+            f.alpha -= 0.007;
+          }
+          s.bossFragments = s.bossFragments.filter(f => f.alpha > 0);
           // Dead — slide boss back out right
           if (s.bossPhase === 'dead') {
             s.bossX += 4;
@@ -842,10 +885,21 @@ export default function GamePage() {
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
 
-        // Boss machine
+        // Boss machine (hidden once fragments spawn)
         const bImg = bossImgRef.current;
-        if (bImg && bImg.complete && bImg.naturalWidth) {
+        if (bImg && bImg.complete && bImg.naturalWidth && !s.bossFragmentsSpawned) {
           ctx.drawImage(bImg, s.bossX + s.bossShakeX, GROUND - BOSS_H + s.bossShakeY, BOSS_W, BOSS_H);
+        }
+        // Shatter fragments
+        if (bImg && s.bossFragments.length > 0) {
+          for (const f of s.bossFragments) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, f.alpha);
+            ctx.translate(f.x, f.y);
+            ctx.rotate(f.rot);
+            ctx.drawImage(bImg, f.sx, f.sy, f.sw, f.sh, -f.dw / 2, -f.dh / 2, f.dw, f.dh);
+            ctx.restore();
+          }
         }
 
         // Boss white angled beams (like Kasey fireballs but white)
