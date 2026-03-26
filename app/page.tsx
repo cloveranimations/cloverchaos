@@ -96,6 +96,15 @@ const episodes = [
     url: 'https://youtu.be/K3Da51RfROM?list=PL_buqz0LdeD57LW39dn6W8SW-IpZi-4Hc',
     thumbnail: 'https://img.youtube.com/vi/K3Da51RfROM/maxresdefault.jpg',
   },
+  {
+    num: '05',
+    title: 'Taradiddle',
+    desc: 'Phase 2 begins. ████████ forces Pat and the team to ████████ in ways they never anticipated. A familiar face ██████████, and the truth behind ████████████ starts to ████████ itself. The rules have changed — and so has ████████.',
+    duration: '--:--',
+    tags: ['PHASE 2', 'COMING SOON'],
+    url: '',
+    thumbnail: 'https://i.imgur.com/MzqfAE6.png',
+  },
 ];
 
 const mainCast = [
@@ -427,7 +436,11 @@ export default function Home() {
                       }}
                     >
                       <span>{ep.duration}</span>
-                      <a href={ep.url} target="_blank" rel="noopener noreferrer" style={{ color: '#4ade80', textDecoration: 'none', fontSize: '11px' }}>&#9654; Watch</a>
+                      {ep.url ? (
+                        <a href={ep.url} target="_blank" rel="noopener noreferrer" style={{ color: '#4ade80', textDecoration: 'none', fontSize: '11px' }}>&#9654; Watch</a>
+                      ) : (
+                        <span style={{ color: '#64748b', fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '1px' }}>COMING SOON</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -564,6 +577,10 @@ export default function Home() {
                 {
                   chapter: 'Chapter 4: A Fading Shamrock',
                   text: "Trapped within the burning building, the team escapes through the vents into a secret underground bunker. They discover the StarGazer, a top-secret portal machine developed by Mark Heffley to secure a Nobel Prize and immense wealth. As Valentina and her robotic sidekick Velma monitor the machine's power, it is revealed that Mark intentionally trapped his own daughter in the Theaneb. This betrayal causes his bodyguard, Michael McCallister, to rebel, prematurely activating the StarGazer without the necessary stabilizing substances. The resulting imbalance causes the machine to implode, creating a localized black hole that emits purple radiation, contaminating Montreal's vegetation. In the chaos, Kasey returns and turns against her father after learning the truth. Mark destroys the magical pocketwatch and flees the scene after a final standoff with the teenagers and arriving authorities. The chapter ends on a somber note as the friends share a gloomy farewell, only for Pat to see a news report on the fire's victims that compels him to return to Montreal, setting the stage for Phase 2.",
+                },
+                {
+                  chapter: 'Chapter 5: Taradiddle',
+                  text: '████████████████████████████████████████████████████████████████████████████████████████████████████████ — COMING SOON.',
                 },
               ].map((item, idx) => (
                 <AnimatedElement key={idx} delay={idx * 0.1}>
