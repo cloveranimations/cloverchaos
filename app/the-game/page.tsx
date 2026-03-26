@@ -46,6 +46,7 @@ export default function GamePage() {
   const crusherRef = useRef<ScriptProcessorNode | null>(null);
   const musicPlayingRef = useRef(false);
   const kaseyDialogIconRef = useRef<HTMLImageElement | null>(null);
+  const markDialogIconRef = useRef<HTMLImageElement | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const poweringDownRef = useRef(false);
   const stopMusicFnRef = useRef<(() => void) | null>(null);
@@ -101,7 +102,7 @@ export default function GamePage() {
       { score: 120, done: false, speaker: 'Kasey', lines: ["Still here? The Theaneb doesn't forgive.", "Neither do I."] },
       { score: 250, done: false, speaker: 'Kasey', lines: ["You should have quit while you were ahead."] },
       { score: 310, done: false, speaker: 'Kasey', lines: ["Dad, get on with it."] },
-      { score: 420, done: false, speaker: 'Kasey', lines: ["Impressive. Annoying, but impressive."] },
+      { score: 420, done: false, speaker: 'Mark', lines: ["Like Clockwork.."] },
     ] as { score: number; done: boolean; speaker: string; lines: string[] }[],
   });
   const rafRef = useRef<number>(0);
@@ -216,11 +217,16 @@ export default function GamePage() {
     bmImg.src = 'https://i.imgur.com/O4mHbAP.png';
     beamImgRef.current = bmImg;
 
-    // Load Kasey dialogue portrait (replace URL when provided)
+    // Load dialogue portraits
     const kdIcon = new Image();
     kdIcon.crossOrigin = 'anonymous';
     kdIcon.src = 'https://i.imgur.com/e9359Wi.png';
     kaseyDialogIconRef.current = kdIcon;
+
+    const mdIcon = new Image();
+    mdIcon.crossOrigin = 'anonymous';
+    mdIcon.src = 'https://i.imgur.com/vRjZMbu.png';
+    markDialogIconRef.current = mdIcon;
 
     // Setup Web Audio with 16-bit bitcrusher effect
     const audioCtx = new AudioContext();
@@ -768,7 +774,7 @@ export default function GamePage() {
         ctx.strokeRect(bx, by, bw, BOX_H);
 
         // Portrait icon clipped to square
-        const kdIcon = kaseyDialogIconRef.current;
+        const kdIcon = d.speaker === 'Mark' ? markDialogIconRef.current : kaseyDialogIconRef.current;
         const iconX = bx + 8;
         const iconY = by + BANNER_H + (BOX_H - BANNER_H - ICON_SIZE) / 2;
         if (kdIcon && kdIcon.complete && kdIcon.naturalWidth) {
