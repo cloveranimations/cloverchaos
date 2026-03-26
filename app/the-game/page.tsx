@@ -418,7 +418,7 @@ export default function GamePage() {
       if (e.code === 'KeyP') { e.preventDefault(); togglePause(); }
       if (e.code === 'Digit5') {
         const s = stateRef.current;
-        if (s.running && !s.dead) { s.score = 500; s.powerUpNextScore = 530; s.bossHealth = 1; }
+        if (s.running && !s.dead) { s.score = 500; s.powerUpNextScore = 530; s.bossHealth = 1; s.health = 3; s.invincible = 600; }
       }
     }
     function onFullscreenChange() {
@@ -632,8 +632,8 @@ export default function GamePage() {
             else if (t < 80)  s.bossFlash = 0.85 + (t - 60) / 20 * 0.15;
             else if (t < 115) s.bossFlash = 1 - (t - 80) / 35;
             else { s.bossFlash = 0; s.bossShakeX = 0; s.bossShakeY = 0; s.bossPhase = 'dead'; }
-            // Spawn fragments at peak flash (t=70)
-            if (t === 70 && !s.bossFragmentsSpawned) {
+            // Spawn fragments at peak flash (t>=70)
+            if (t >= 70 && !s.bossFragmentsSpawned) {
               s.bossFragmentsSpawned = true;
               const bImg2 = bossImgRef.current;
               if (bImg2 && bImg2.naturalWidth) {
@@ -669,7 +669,7 @@ export default function GamePage() {
             f.x += f.vx; f.y += f.vy;
             f.vy += 0.35;
             f.rot += f.rotSpd;
-            f.alpha -= 0.007;
+            f.alpha -= 0.004;
           }
           s.bossFragments = s.bossFragments.filter(f => f.alpha > 0);
           // Dead — slide boss back out right
