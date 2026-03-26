@@ -57,7 +57,7 @@ export default function GamePage() {
   const fullscreenBtnRef = useRef<HTMLButtonElement>(null);
   const bossImgRef = useRef<HTMLImageElement | null>(null);
   const bossLaserImgRef = useRef<HTMLImageElement | null>(null);
-  const bossWarningRef = useRef<HTMLDivElement | null>(null);
+  const bossWarningImgRef = useRef<HTMLImageElement | null>(null);
   const bossOuterRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef({
     running: false,
@@ -252,6 +252,11 @@ export default function GamePage() {
     laserImg.crossOrigin = 'anonymous';
     laserImg.src = 'https://i.imgur.com/jfgc6Ei.png';
     bossLaserImgRef.current = laserImg;
+
+    const warnImg = new Image();
+    warnImg.crossOrigin = 'anonymous';
+    warnImg.src = 'https://i.imgur.com/5SXVpUj.png';
+    bossWarningImgRef.current = warnImg;
 
     // Load dialogue portraits
     const kdIcon = new Image();
@@ -596,7 +601,7 @@ export default function GamePage() {
               const dist = Math.sqrt(dx * dx + dy * dy);
               const spd = 7;
               s.bossBeams.push({ x: startX, y: startY, vx: (dx / dist) * spd, vy: (dy / dist) * spd, angle: Math.atan2(dy, dx) });
-              s.bossBeamTimer = 45 + Math.floor(Math.random() * 25);
+              s.bossBeamTimer = 110 + Math.floor(Math.random() * 20);
             }
           }
           // Move boss beams + hit detection
@@ -1092,11 +1097,11 @@ export default function GamePage() {
         wrapper.style.paddingTop = lbPadPct;
         wrapper.style.paddingBottom = lbPadPct;
       }
-      if (bossWarningRef.current) {
+      // Draw warning sign on canvas — guaranteed centered + tilted
+      const warnImg = bossWarningImgRef.current;
+      if (warnImg && s.bossPhase === 'entering') {
         const t = s.bossEnterTimer;
-        if (s.bossPhase === 'entering' && t < 150) {
-          bossWarningRef.current.style.display = 'block';
-          // Strobe flashes x3, then hold, then fade out
+        if (t < 150) {
           let op: number;
           if      (t <  6) op = t / 6;
           else if (t < 10) op = 0.1;
@@ -1106,14 +1111,13 @@ export default function GamePage() {
           else if (t < 30) op = 0.1;
           else if (t < 120) op = 1;
           else              op = (150 - t) / 30;
-          bossWarningRef.current.style.opacity = String(Math.max(0, Math.min(1, op)));
-          // Scale pulse during strobe, then settle; always tilted -10deg (scale>=1.5 covers corners)
           const scl = t < 30 ? (1.55 + 0.06 * (1 - t / 30)) : 1.5;
-          bossWarningRef.current.style.transformOrigin = '50% 50%';
-          bossWarningRef.current.style.transform = `rotate(-10deg) scale(${scl.toFixed(3)})`;
-        } else {
-          bossWarningRef.current.style.display = 'none';
-          bossWarningRef.current.style.transform = '';
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, Math.min(1, op));
+          ctx.translate(W / 2, H / 2);
+          ctx.rotate(-10 * Math.PI / 180);
+          ctx.drawImage(warnImg, -W / 2 * scl, -H / 2 * scl, W * scl, H * scl);
+          ctx.restore();
         }
       }
 
@@ -1239,17 +1243,6 @@ export default function GamePage() {
                 style={{ position: 'absolute', imageRendering: 'pixelated', pointerEvents: 'none', display: 'none' }}
               />
             ))}
-            {/* Warning sign — inside wrapper, works in fullscreen */}
-            <div
-              ref={bossWarningRef}
-              style={{
-                display: 'none', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 22,
-                backgroundImage: 'url(https://i.imgur.com/5SXVpUj.png)',
-                backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center', pointerEvents: 'none',
-                transformOrigin: 'center',
-              }}
-            />
             {/* Letterbox bars: implemented via wrapper paddingTop/paddingBottom in the game loop */}
           </div>
           </div>{/* end bossOuterRef */}
