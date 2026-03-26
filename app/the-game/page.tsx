@@ -14,6 +14,9 @@ const PAT_W = 48;
 const PAT_H = 48;
 const PAT_X = 60;
 const OBS_Y_OFFSET = 12;
+const BOSS_W = 380;
+const BOSS_H = 380;
+const BOSS_FINAL_X = W - BOSS_W;
 
 const BG_SRCS = [
   'https://i.imgur.com/wyARKng.png',
@@ -52,6 +55,12 @@ export default function GamePage() {
   const stopMusicFnRef = useRef<(() => void) | null>(null);
   const pauseRestartBtnRef = useRef<HTMLButtonElement>(null);
   const fullscreenBtnRef = useRef<HTMLButtonElement>(null);
+  const bossImgRef = useRef<HTMLImageElement | null>(null);
+  const bossLaserImgRef = useRef<HTMLImageElement | null>(null);
+  const bossWarningRef = useRef<HTMLDivElement | null>(null);
+  const letterboxTopRef = useRef<HTMLDivElement | null>(null);
+  const letterboxBotRef = useRef<HTMLDivElement | null>(null);
+  const bossOuterRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef({
     running: false,
     dead: false,
@@ -104,6 +113,14 @@ export default function GamePage() {
       { score: 310, done: false, speaker: 'Kasey', lines: ["Dad, get on with it."] },
       { score: 420, done: false, speaker: 'Mark', lines: ["Like Clockwork.."] },
     ] as { score: number; done: boolean; speaker: string; lines: string[] }[],
+    bossTriggered: false,
+    bossPhase: 'none' as 'none' | 'warning' | 'entering' | 'fighting' | 'dead',
+    bossHealth: 5,
+    bossX: W + 450,
+    bossRotation: 0,
+    bossLetterbox: 0,
+    bossBeams: [] as { x: number; y: number; vx: number; vy: number; angle: number }[],
+    bossBeamTimer: 0,
   });
   const rafRef = useRef<number>(0);
 
@@ -162,6 +179,14 @@ export default function GamePage() {
     s.markHitFlash = 0;
     s.dialogue = null;
     s.dialogueTriggers.forEach(t => { t.done = false; });
+    s.bossTriggered = false;
+    s.bossPhase = 'none';
+    s.bossHealth = 5;
+    s.bossX = W + 450;
+    s.bossRotation = 0;
+    s.bossLetterbox = 0;
+    s.bossBeams = [];
+    s.bossBeamTimer = 0;
     s.speed = OBSTACLE_SPEED_START;
     s.frame = 0;
     s.bgX = 0;
@@ -216,6 +241,17 @@ export default function GamePage() {
     bmImg.crossOrigin = 'anonymous';
     bmImg.src = 'https://i.imgur.com/O4mHbAP.png';
     beamImgRef.current = bmImg;
+
+    // Load boss images
+    const bossImg = new Image();
+    bossImg.crossOrigin = 'anonymous';
+    bossImg.src = 'https://i.imgur.com/u0pSn8i.png';
+    bossImgRef.current = bossImg;
+
+    const laserImg = new Image();
+    laserImg.crossOrigin = 'anonymous';
+    laserImg.src = 'https://i.imgur.com/jfgc6Ei.png';
+    bossLaserImgRef.current = laserImg;
 
     // Load dialogue portraits
     const kdIcon = new Image();
@@ -461,9 +497,9 @@ export default function GamePage() {
 
         if (s.invincible > 0) s.invincible--;
 
-        function takeDamage() {
+        function takeDamage(dmg = 1) {
           if (s.invincible > 0) return;
-          s.health--;
+          s.health -= dmg;
           s.invincible = 80;
           if (s.health <= 0) {
             s.dead = true;
@@ -502,10 +538,63 @@ export default function GamePage() {
           if (px + pw > d.x + 6 && px < d.x + 42 && py < d.y + 34 && py + ph > d.y + 6) takeDamage();
         }
 
-        // Power-up spawn every 60 score
+        // Boss — score-based phase transitions
+        if (Math.floor(s.score) >= 500 && !s.bossTriggered) {
+          s.bossTriggered = true;
+          s.bossPhase = 'warning';
+          s.dialogue = null; // clear any dialogue
+        }
+        if (s.bossPhase === 'warning' && Math.floor(s.score) >= 510) {
+          s.bossPhase = 'entering';
+        }
+        if (s.bossPhase !== 'none') {
+          // Animate rotation (0 → 15 deg when active, back to 0 when dead)
+          const rotTarget = s.bossPhase === 'dead' ? 0 : 15;
+          if (s.bossRotation < rotTarget) s.bossRotation = Math.min(rotTarget, s.bossRotation + 0.5);
+          else if (s.bossRotation > rotTarget) s.bossRotation = Math.max(rotTarget, s.bossRotation - 0.5);
+          // Animate cinematic letterbox
+          const lbTarget = s.bossPhase === 'dead' ? 0 : 32;
+          if (s.bossLetterbox < lbTarget) s.bossLetterbox = Math.min(lbTarget, s.bossLetterbox + 1.5);
+          else if (s.bossLetterbox > lbTarget) s.bossLetterbox = Math.max(lbTarget, s.bossLetterbox - 1.5);
+          // Entering — slide boss in heavily and slowly
+          if (s.bossPhase === 'entering') {
+            s.bossX = Math.max(BOSS_FINAL_X, s.bossX - 1.5);
+            if (s.bossX <= BOSS_FINAL_X) s.bossPhase = 'fighting';
+          }
+          // Fighting — fire angled white beams at Pat starting at score 520
+          if (s.bossPhase === 'fighting' && Math.floor(s.score) >= 520) {
+            s.bossBeamTimer--;
+            if (s.bossBeamTimer <= 0) {
+              const startX = s.bossX + 10;
+              const startY = GROUND - BOSS_H * 0.55;
+              const tx = PAT_X + PAT_W / 2;
+              const ty = s.patY + PAT_H / 2;
+              const dx = tx - startX, dy = ty - startY;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const spd = 7;
+              s.bossBeams.push({ x: startX, y: startY, vx: (dx / dist) * spd, vy: (dy / dist) * spd, angle: Math.atan2(dy, dx) });
+              s.bossBeamTimer = 110 + Math.floor(Math.random() * 80);
+            }
+          }
+          // Move boss beams + hit detection
+          for (const b of s.bossBeams) { b.x += b.vx; b.y += b.vy; }
+          s.bossBeams = s.bossBeams.filter(b => b.x > -80 && b.x < W + 80 && b.y > -80 && b.y < H + 80);
+          for (const b of s.bossBeams) {
+            if (px + pw > b.x - 28 && px < b.x + 28 && py + ph > b.y - 12 && py < b.y + 12) takeDamage(2);
+          }
+          // Dead — slide boss back out right
+          if (s.bossPhase === 'dead') {
+            s.bossX += 4;
+            s.bossBeams = [];
+            if (s.bossX > W + 500) s.bossPhase = 'none';
+          }
+        }
+
+        // Power-up spawn — every 30 during boss fight, else every 60
+        const puInterval = s.bossPhase === 'fighting' ? 30 : 60;
         if (Math.floor(s.score) >= s.powerUpNextScore) {
           s.powerUps.push({ x: W + 20, y: GROUND - 48 });
-          s.powerUpNextScore += 60;
+          s.powerUpNextScore += puInterval;
         }
         for (const p of s.powerUps) p.x -= s.speed;
         s.powerUps = s.powerUps.filter(p => p.x + 48 > 0);
@@ -522,6 +611,7 @@ export default function GamePage() {
             const targets: string[] = [];
             if (s.kaseyStunUntil === 0) targets.push('kasey');
             if (s.markActive && s.markStunUntil === 0) targets.push('mark');
+            if (s.bossPhase === 'fighting') targets.push('boss');
             if (targets.length > 0) {
               const target = targets[Math.floor(Math.random() * targets.length)];
               const patCX = PAT_X + PAT_W / 2;
@@ -530,6 +620,10 @@ export default function GamePage() {
               if (target === 'kasey') {
                 const tx = kaseyBaseX + PAT_W / 2;
                 const ty = kaseyBaseY + PAT_H / 2;
+                angle = Math.atan2(ty - patCY, tx - patCX);
+              } else if (target === 'boss') {
+                const tx = s.bossX + BOSS_W / 2;
+                const ty = GROUND - BOSS_H / 2;
                 angle = Math.atan2(ty - patCY, tx - patCX);
               }
               // mark is at ground level → angle = 0 (horizontal)
@@ -558,6 +652,13 @@ export default function GamePage() {
             s.drones = [];
             s.beam = null;
           }
+          if (s.beam && s.beam.target === 'boss' && s.bossPhase === 'fighting') {
+            if (s.beam.x > s.bossX && s.beam.x < s.bossX + BOSS_W && s.beam.y > GROUND - BOSS_H && s.beam.y < GROUND) {
+              s.bossHealth--;
+              s.beam = null;
+              if (s.bossHealth <= 0) { s.bossPhase = 'dead'; s.bossBeams = []; }
+            }
+          }
           if (s.beam && (s.beam.x > W + 60 || s.beam.y < -60 || s.beam.y > H + 60)) s.beam = null;
         }
 
@@ -584,8 +685,8 @@ export default function GamePage() {
         if (s.kaseyHitFlash > 0) s.kaseyHitFlash--;
         if (s.markHitFlash > 0) s.markHitFlash--;
 
-        // Dialogue triggers
-        if (!s.dialogue) {
+        // Dialogue triggers — suppressed during boss phases
+        if (!s.dialogue && s.bossPhase === 'none') {
           for (const t of s.dialogueTriggers) {
             if (!t.done && Math.floor(s.score) >= t.score) {
               t.done = true;
@@ -682,6 +783,63 @@ export default function GamePage() {
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(s.markX + s.markOffX, GROUND - PAT_H, PAT_W, PAT_H);
         ctx.restore();
+      }
+
+      // ── Boss drawing ──────────────────────────────────────────────────────
+      if (s.bossPhase !== 'none') {
+        // Red cinematic dim — intensity tied to rotation progress
+        const dimAlpha = Math.min(0.4, (s.bossRotation / 15) * 0.4);
+        ctx.save();
+        ctx.globalAlpha = dimAlpha;
+        ctx.fillStyle = '#1a0000';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+
+        // Boss machine
+        const bImg = bossImgRef.current;
+        if (bImg && bImg.complete && bImg.naturalWidth && s.bossPhase !== 'warning') {
+          ctx.drawImage(bImg, s.bossX, GROUND - BOSS_H, BOSS_W, BOSS_H);
+        }
+
+        // Boss white angled beams (like Kasey fireballs but white)
+        for (const b of s.bossBeams) {
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(b.angle);
+          // outer glow
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = '#99ccff';
+          ctx.fillRect(-54, -15, 108, 30);
+          // main beam
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = '#ddeeff';
+          ctx.fillRect(-50, -8, 100, 16);
+          // bright white core
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(-50, -4, 100, 8);
+          ctx.restore();
+        }
+
+        // Boss health bar (bottom-center of canvas)
+        if (s.bossPhase === 'entering' || s.bossPhase === 'fighting') {
+          const bBarW = 300, bBarH = 14;
+          const bBarX = (W - bBarW) / 2, bBarY = H - 38;
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.fillRect(bBarX - 6, bBarY - 22, bBarW + 12, bBarH + 30);
+          ctx.fillStyle = '#ef4444';
+          ctx.font = 'bold 11px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('THE STARGAZER', W / 2, bBarY - 6);
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#3b0d0d';
+          ctx.fillRect(bBarX, bBarY, bBarW, bBarH);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(bBarX, bBarY, bBarW * (s.bossHealth / 5), bBarH);
+          ctx.strokeStyle = '#ff6666';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(bBarX, bBarY, bBarW, bBarH);
+        }
       }
 
       // Shared scale + canvas offset (accounts for black bars in fullscreen)
@@ -884,6 +1042,18 @@ export default function GamePage() {
         pauseRestartBtnRef.current.style.display = s.paused ? 'block' : 'none';
       }
 
+      // Boss overlay updates (wrapper rotation, letterbox, warning sign)
+      if (wrapper) {
+        wrapper.style.transform = s.bossPhase !== 'none' ? `rotate(${s.bossRotation}deg)` : '';
+        wrapper.style.transition = 'transform 0.3s ease';
+      }
+      const lbPct = (s.bossLetterbox / H * 100).toFixed(2) + '%';
+      if (letterboxTopRef.current) letterboxTopRef.current.style.height = lbPct;
+      if (letterboxBotRef.current) letterboxBotRef.current.style.height = lbPct;
+      if (bossWarningRef.current) {
+        bossWarningRef.current.style.display = s.bossPhase === 'warning' ? 'block' : 'none';
+      }
+
       if (s.paused) {
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(0, 0, W, H);
@@ -924,10 +1094,24 @@ export default function GamePage() {
             <p style={{ color: '#64748b', fontSize: '14px', fontFamily: 'var(--font-mono)' }}>Pat must do what he should&apos;ve done since the very beginning. Vanquish.</p>
           </div>
 
+          <div ref={bossOuterRef} style={{ position: 'relative', width: '100%', maxWidth: W }}>
+            {/* Cinematic letterbox bars — don't rotate */}
+            <div ref={letterboxTopRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 25, pointerEvents: 'none', transition: 'height 0.3s ease' }} />
+            <div ref={letterboxBotRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 25, pointerEvents: 'none', transition: 'height 0.3s ease' }} />
+            {/* Warning sign overlay — doesn't rotate */}
+            <div
+              ref={bossWarningRef}
+              style={{
+                display: 'none', position: 'absolute', inset: 0, zIndex: 24,
+                backgroundImage: 'url(https://i.imgur.com/5SXVpUj.png)',
+                backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center', pointerEvents: 'none',
+              }}
+            />
           <div
             ref={wrapperRef}
             className="game-wrapper"
-            style={{ position: 'relative', width: '100%', maxWidth: W, borderRadius: 12, overflow: 'hidden', border: '2px solid rgba(74,222,128,0.3)', boxShadow: '0 0 40px rgba(74,222,128,0.1)' }}
+            style={{ position: 'relative', width: '100%', borderRadius: 12, overflow: 'hidden', border: '2px solid rgba(74,222,128,0.3)', boxShadow: '0 0 40px rgba(74,222,128,0.1)' }}
           >
             <canvas
               ref={canvasRef}
@@ -1006,6 +1190,7 @@ export default function GamePage() {
               />
             ))}
           </div>
+          </div>{/* end bossOuterRef */}
 
           <div className="game-controls" style={{ marginTop: '16px', display: 'flex', gap: '24px', fontFamily: 'var(--font-mono)', fontSize: '13px', color: '#475569' }}>
             <span>SPACE / ↑ — jump</span>
