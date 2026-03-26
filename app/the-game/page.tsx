@@ -572,7 +572,7 @@ export default function GamePage() {
           const rotTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? -10 : 0;
           if (s.bossRotation < rotTarget) s.bossRotation = Math.min(rotTarget, s.bossRotation + 0.8);
           else if (s.bossRotation > rotTarget) s.bossRotation = Math.max(rotTarget, s.bossRotation - 0.8);
-          const lbTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? 72 : 0;
+          const lbTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? 24 : 0;
           if (s.bossLetterbox < lbTarget) s.bossLetterbox = Math.min(lbTarget, s.bossLetterbox + 2);
           else if (s.bossLetterbox > lbTarget) s.bossLetterbox = Math.max(lbTarget, s.bossLetterbox - 2);
           // Entering — quick but heavy slide
