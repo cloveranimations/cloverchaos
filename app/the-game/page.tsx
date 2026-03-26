@@ -58,8 +58,6 @@ export default function GamePage() {
   const bossImgRef = useRef<HTMLImageElement | null>(null);
   const bossLaserImgRef = useRef<HTMLImageElement | null>(null);
   const bossWarningRef = useRef<HTMLDivElement | null>(null);
-  const letterboxTopRef = useRef<HTMLDivElement | null>(null);
-  const letterboxBotRef = useRef<HTMLDivElement | null>(null);
   const bossOuterRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef({
     running: false,
@@ -1085,10 +1083,12 @@ export default function GamePage() {
         pauseRestartBtnRef.current.style.display = s.paused ? 'block' : 'none';
       }
 
-      // Boss overlay updates (letterbox, warning sign)
-      const lbPct = (s.bossLetterbox / H * 100).toFixed(2) + '%';
-      if (letterboxTopRef.current) letterboxTopRef.current.style.height = lbPct;
-      if (letterboxBotRef.current) letterboxBotRef.current.style.height = lbPct;
+      // Boss overlay updates (letterbox via wrapper padding, warning sign)
+      if (wrapper) {
+        const lbPadPct = (s.bossLetterbox / W * 100).toFixed(2) + '%';
+        wrapper.style.paddingTop = lbPadPct;
+        wrapper.style.paddingBottom = lbPadPct;
+      }
       if (bossWarningRef.current) {
         const t = s.bossEnterTimer;
         if (s.bossPhase === 'entering' && t < 150) {
@@ -1144,7 +1144,7 @@ export default function GamePage() {
           <div
             ref={wrapperRef}
             className="game-wrapper"
-            style={{ position: 'relative', width: '100%', borderRadius: 12, overflow: 'hidden', border: '2px solid rgba(74,222,128,0.3)', boxShadow: '0 0 40px rgba(74,222,128,0.1)' }}
+            style={{ position: 'relative', width: '100%', borderRadius: 12, overflow: 'hidden', border: '2px solid rgba(74,222,128,0.3)', boxShadow: '0 0 40px rgba(74,222,128,0.1)', background: '#000' }}
           >
             <canvas
               ref={canvasRef}
@@ -1232,9 +1232,7 @@ export default function GamePage() {
                 backgroundPosition: 'center', pointerEvents: 'none',
               }}
             />
-            {/* Cinematic letterbox bars — inside wrapper, static (no wrapper CSS rotation), fullscreen-compatible */}
-            <div ref={letterboxTopRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 24, pointerEvents: 'none' }} />
-            <div ref={letterboxBotRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 24, pointerEvents: 'none' }} />
+            {/* Letterbox bars: implemented via wrapper paddingTop/paddingBottom in the game loop */}
           </div>
           </div>{/* end bossOuterRef */}
 
