@@ -552,8 +552,8 @@ export default function GamePage() {
           s.bossPhase = 'entering';
         }
         if (s.bossPhase !== 'none') {
-          // Animate rotation (0 → 15 deg when active, back to 0 when dead)
-          const rotTarget = s.bossPhase === 'dead' ? 0 : 15;
+          // Animate rotation (0 → -10 deg when active, back to 0 when dead)
+          const rotTarget = s.bossPhase === 'dead' ? 0 : -10;
           if (s.bossRotation < rotTarget) s.bossRotation = Math.min(rotTarget, s.bossRotation + 0.5);
           else if (s.bossRotation > rotTarget) s.bossRotation = Math.max(rotTarget, s.bossRotation - 0.5);
           // Animate cinematic letterbox
@@ -792,7 +792,7 @@ export default function GamePage() {
       // ── Boss drawing ──────────────────────────────────────────────────────
       if (s.bossPhase !== 'none') {
         // Red cinematic dim — intensity tied to rotation progress
-        const dimAlpha = Math.min(0.4, (s.bossRotation / 15) * 0.4);
+        const dimAlpha = Math.min(0.4, (Math.abs(s.bossRotation) / 10) * 0.4);
         ctx.save();
         ctx.globalAlpha = dimAlpha;
         ctx.fillStyle = '#1a0000';
@@ -1099,14 +1099,11 @@ export default function GamePage() {
           </div>
 
           <div ref={bossOuterRef} style={{ position: 'relative', width: '100%', maxWidth: W }}>
-            {/* Cinematic letterbox bars — don't rotate */}
-            <div ref={letterboxTopRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 25, pointerEvents: 'none', transition: 'height 0.3s ease' }} />
-            <div ref={letterboxBotRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 25, pointerEvents: 'none', transition: 'height 0.3s ease' }} />
-            {/* Warning sign overlay — doesn't rotate */}
+            {/* Warning sign — stays upright outside the rotating wrapper */}
             <div
               ref={bossWarningRef}
               style={{
-                display: 'none', position: 'absolute', inset: 0, zIndex: 24,
+                display: 'none', position: 'absolute', inset: 0, zIndex: 30,
                 backgroundImage: 'url(https://i.imgur.com/5SXVpUj.png)',
                 backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center', pointerEvents: 'none',
@@ -1117,6 +1114,9 @@ export default function GamePage() {
             className="game-wrapper"
             style={{ position: 'relative', width: '100%', borderRadius: 12, overflow: 'hidden', border: '2px solid rgba(74,222,128,0.3)', boxShadow: '0 0 40px rgba(74,222,128,0.1)' }}
           >
+            {/* Cinematic letterbox bars — inside wrapper so they tilt with the game */}
+            <div ref={letterboxTopRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 20, pointerEvents: 'none' }} />
+            <div ref={letterboxBotRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 20, pointerEvents: 'none' }} />
             <canvas
               ref={canvasRef}
               width={W}
