@@ -632,8 +632,8 @@ export default function GamePage() {
             s.patGlow = 40;
             // Fire beam at random available target
             const targets: string[] = [];
-            if (s.kaseyStunUntil === 0) targets.push('kasey');
-            if (s.markActive && s.markStunUntil === 0) targets.push('mark');
+            if (s.bossPhase === 'none' && s.kaseyStunUntil === 0) targets.push('kasey');
+            if (s.bossPhase === 'none' && s.markActive && s.markStunUntil === 0) targets.push('mark');
             if (s.bossPhase === 'fighting') targets.push('boss');
             if (targets.length > 0) {
               const target = targets[Math.floor(Math.random() * targets.length)];
