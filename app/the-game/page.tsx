@@ -581,19 +581,22 @@ export default function GamePage() {
             s.bossX = Math.max(BOSS_FINAL_X, s.bossX - 12);
             if (s.bossX <= BOSS_FINAL_X) s.bossPhase = 'fighting';
           }
-          // Fighting — fire angled white beams at Pat starting at score 520
+          // Fighting — rapid inaccurate beams at Pat starting at score 520
           if (s.bossPhase === 'fighting' && Math.floor(s.score) >= 520) {
             s.bossBeamTimer--;
             if (s.bossBeamTimer <= 0) {
               const startX = s.bossX + 10;
               const startY = GROUND - BOSS_H * 0.55;
-              const tx = PAT_X + PAT_W / 2;
-              const ty = s.patY + PAT_H / 2;
+              // Inaccurate: scatter over head, on him, or in front
+              const scatterY = (Math.random() - 0.5) * PAT_H * 2.5;
+              const scatterX = (Math.random() - 0.35) * PAT_W * 3.5;
+              const tx = PAT_X + PAT_W / 2 + scatterX;
+              const ty = s.patY + PAT_H / 2 + scatterY;
               const dx = tx - startX, dy = ty - startY;
               const dist = Math.sqrt(dx * dx + dy * dy);
               const spd = 7;
               s.bossBeams.push({ x: startX, y: startY, vx: (dx / dist) * spd, vy: (dy / dist) * spd, angle: Math.atan2(dy, dx) });
-              s.bossBeamTimer = 110 + Math.floor(Math.random() * 80);
+              s.bossBeamTimer = 18 + Math.floor(Math.random() * 22);
             }
           }
           // Move boss beams + hit detection
@@ -1093,10 +1096,23 @@ export default function GamePage() {
         const t = s.bossEnterTimer;
         if (s.bossPhase === 'entering' && t < 150) {
           bossWarningRef.current.style.display = 'block';
-          const op = t < 15 ? t / 15 : t > 130 ? (150 - t) / 20 : 1;
+          // Strobe flashes x3, then hold, then fade out
+          let op: number;
+          if      (t <  6) op = t / 6;
+          else if (t < 10) op = 0.1;
+          else if (t < 16) op = 1;
+          else if (t < 20) op = 0.1;
+          else if (t < 26) op = 1;
+          else if (t < 30) op = 0.1;
+          else if (t < 120) op = 1;
+          else              op = (150 - t) / 30;
           bossWarningRef.current.style.opacity = String(Math.max(0, Math.min(1, op)));
+          // Scale pulse during strobe, then settle; always tilted -10deg (scale>=1.5 covers corners)
+          const scl = t < 30 ? (1.55 + 0.06 * (1 - t / 30)) : 1.5;
+          bossWarningRef.current.style.transform = `rotate(-10deg) scale(${scl.toFixed(3)})`;
         } else {
           bossWarningRef.current.style.display = 'none';
+          bossWarningRef.current.style.transform = '';
         }
       }
 
@@ -1222,7 +1238,7 @@ export default function GamePage() {
                 style={{ position: 'absolute', imageRendering: 'pixelated', pointerEvents: 'none', display: 'none' }}
               />
             ))}
-            {/* Warning sign — inside wrapper, works in fullscreen, no CSS rotation (wrapper has none) */}
+            {/* Warning sign — inside wrapper, works in fullscreen */}
             <div
               ref={bossWarningRef}
               style={{
@@ -1230,6 +1246,7 @@ export default function GamePage() {
                 backgroundImage: 'url(https://i.imgur.com/5SXVpUj.png)',
                 backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center', pointerEvents: 'none',
+                transformOrigin: 'center',
               }}
             />
             {/* Letterbox bars: implemented via wrapper paddingTop/paddingBottom in the game loop */}
