@@ -574,7 +574,7 @@ export default function GamePage() {
           const rotTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? -10 : 0;
           if (s.bossRotation < rotTarget) s.bossRotation = Math.min(rotTarget, s.bossRotation + 0.8);
           else if (s.bossRotation > rotTarget) s.bossRotation = Math.max(rotTarget, s.bossRotation - 0.8);
-          const lbTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? 32 : 0;
+          const lbTarget = (s.bossPhase === 'entering' || s.bossPhase === 'fighting') ? 72 : 0;
           if (s.bossLetterbox < lbTarget) s.bossLetterbox = Math.min(lbTarget, s.bossLetterbox + 2);
           else if (s.bossLetterbox > lbTarget) s.bossLetterbox = Math.max(lbTarget, s.bossLetterbox - 2);
           // Entering — quick but heavy slide
@@ -1091,9 +1091,9 @@ export default function GamePage() {
       if (letterboxBotRef.current) letterboxBotRef.current.style.height = lbPct;
       if (bossWarningRef.current) {
         const t = s.bossEnterTimer;
-        if (s.bossPhase === 'entering' && t < 90) {
+        if (s.bossPhase === 'entering' && t < 150) {
           bossWarningRef.current.style.display = 'block';
-          const op = t < 20 ? t / 20 : t > 70 ? (90 - t) / 20 : 1;
+          const op = t < 15 ? t / 15 : t > 130 ? (150 - t) / 20 : 1;
           bossWarningRef.current.style.opacity = String(Math.max(0, Math.min(1, op)));
         } else {
           bossWarningRef.current.style.display = 'none';
@@ -1141,19 +1141,6 @@ export default function GamePage() {
           </div>
 
           <div ref={bossOuterRef} style={{ position: 'relative', width: '100%', maxWidth: W }}>
-            {/* Static cinematic letterbox bars — outside wrapper, don't tilt */}
-            <div ref={letterboxTopRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 25, pointerEvents: 'none' }} />
-            <div ref={letterboxBotRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 25, pointerEvents: 'none' }} />
-            {/* Warning sign — static, outside wrapper */}
-            <div
-              ref={bossWarningRef}
-              style={{
-                display: 'none', position: 'absolute', inset: 0, zIndex: 30,
-                backgroundImage: 'url(https://i.imgur.com/5SXVpUj.png)',
-                backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center', pointerEvents: 'none',
-              }}
-            />
           <div
             ref={wrapperRef}
             className="game-wrapper"
@@ -1235,6 +1222,19 @@ export default function GamePage() {
                 style={{ position: 'absolute', imageRendering: 'pixelated', pointerEvents: 'none', display: 'none' }}
               />
             ))}
+            {/* Warning sign — inside wrapper, works in fullscreen, no CSS rotation (wrapper has none) */}
+            <div
+              ref={bossWarningRef}
+              style={{
+                display: 'none', position: 'absolute', inset: 0, zIndex: 22,
+                backgroundImage: 'url(https://i.imgur.com/5SXVpUj.png)',
+                backgroundSize: 'cover', backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center', pointerEvents: 'none',
+              }}
+            />
+            {/* Cinematic letterbox bars — inside wrapper, static (no wrapper CSS rotation), fullscreen-compatible */}
+            <div ref={letterboxTopRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 24, pointerEvents: 'none' }} />
+            <div ref={letterboxBotRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '0%', background: '#000', zIndex: 24, pointerEvents: 'none' }} />
           </div>
           </div>{/* end bossOuterRef */}
 
