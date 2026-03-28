@@ -94,6 +94,7 @@ export default function GamePage() {
   const explosionPlayedRef = useRef(false);
   const victoryBufferRef = useRef<AudioBuffer | null>(null);
   const victoryPlayedRef = useRef(false);
+  const powerUpSfxRef = useRef<AudioBuffer | null>(null);
   const kaseyDialogIconRef = useRef<HTMLImageElement | null>(null);
   const markDialogIconRef = useRef<HTMLImageElement | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
@@ -399,6 +400,12 @@ export default function GamePage() {
       .then(r => r.arrayBuffer())
       .then(buf => audioCtx.decodeAudioData(buf))
       .then(decoded => { victoryBufferRef.current = decoded; })
+      .catch(() => {});
+
+    fetch('https://cdn.pixabay.com/download/audio/2022/03/26/audio_b21b5a45dd.mp3?filename=freesound_community-energy-3-107098.mp3')
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(decoded => { powerUpSfxRef.current = decoded; })
       .catch(() => {});
 
     function playMusic() {
@@ -791,6 +798,19 @@ export default function GamePage() {
             s.health = 3;
             s.invincible = 120;
             s.patGlow = 40;
+            if (powerUpSfxRef.current && audioCtxRef.current) {
+              const ac = audioCtxRef.current;
+              const resume = ac.state === 'suspended' ? ac.resume() : Promise.resolve();
+              resume.then(() => {
+                const puSrc = ac.createBufferSource();
+                puSrc.buffer = powerUpSfxRef.current!;
+                const puGain = ac.createGain();
+                puGain.gain.value = 2.0;
+                puSrc.connect(puGain);
+                puGain.connect(ac.destination);
+                puSrc.start();
+              });
+            }
             // Fire beam at random available target
             const targets: string[] = [];
             if (s.bossPhase === 'none' && s.kaseyStunUntil === 0) targets.push('kasey');
