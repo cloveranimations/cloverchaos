@@ -15,8 +15,8 @@ const PAT_W = 48;
 const PAT_H = 48;
 const PAT_X = 60;
 const OBS_Y_OFFSET = 12;
-const BOSS_W = 380;
-const BOSS_H = 380;
+const BOSS_W = 320;
+const BOSS_H = 320;
 const BOSS_FINAL_X = W - BOSS_W - 80;
 
 // Minecraft-style pixel cracks — tight, dark, centered on boss chest. dmg = hits taken.
