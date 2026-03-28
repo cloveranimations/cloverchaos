@@ -15,9 +15,9 @@ const PAT_W = 48;
 const PAT_H = 48;
 const PAT_X = 60;
 const OBS_Y_OFFSET = 12;
-const BOSS_W = 360;
-const BOSS_H = 320;
-const BOSS_FINAL_X = W - BOSS_W - 120;
+const BOSS_W = 420;
+const BOSS_H = 330;
+const BOSS_FINAL_X = W - BOSS_W - 40;
 
 // Minecraft-style pixel cracks — tight, dark, centered on boss chest. dmg = hits taken.
 const BOSS_CRACKS = [
@@ -532,7 +532,6 @@ export default function GamePage() {
         ctx.save();
         ctx.translate(W / 2, H / 2);
         ctx.rotate(s.bossRotation * Math.PI / 180);
-        ctx.scale(1.1, 1.1);
         ctx.translate(-W / 2, -H / 2);
       }
 
@@ -1090,7 +1089,7 @@ export default function GamePage() {
           const pivotX = (cLeft + (W / 2) * scale) - patLeft;
           const pivotY = (cTop + (H / 2) * scale) - patTop;
           patImg.style.transformOrigin = `${pivotX}px ${pivotY}px`;
-          patImg.style.transform = `rotate(${s.bossRotation}deg) scale(1.1)`;
+          patImg.style.transform = `rotate(${s.bossRotation}deg)`;
         } else {
           patImg.style.transform = '';
           patImg.style.transformOrigin = '';
