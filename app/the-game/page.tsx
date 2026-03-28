@@ -807,7 +807,7 @@ export default function GamePage() {
                 const puGain = ac.createGain();
                 puGain.gain.value = 2.0;
                 puSrc.connect(puGain);
-                puGain.connect(ac.destination);
+                puGain.connect(crusherRef.current ?? ac.destination);
                 puSrc.start();
               });
             }
