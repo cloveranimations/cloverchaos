@@ -90,6 +90,8 @@ export default function GamePage() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const crusherRef = useRef<ScriptProcessorNode | null>(null);
   const musicPlayingRef = useRef(false);
+  const explosionBufferRef = useRef<AudioBuffer | null>(null);
+  const explosionPlayedRef = useRef(false);
   const kaseyDialogIconRef = useRef<HTMLImageElement | null>(null);
   const markDialogIconRef = useRef<HTMLImageElement | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
@@ -244,6 +246,7 @@ export default function GamePage() {
     s.bossFragmentsSpawned = false;
     s.bossHitSparks = [];
     scoreSubmittedRef.current = false;
+    explosionPlayedRef.current = false;
     s.speed = OBSTACLE_SPEED_START;
     s.frame = 0;
     s.bgX = 0;
@@ -381,6 +384,12 @@ export default function GamePage() {
       .then(r => r.arrayBuffer())
       .then(buf => audioCtx.decodeAudioData(buf))
       .then(decoded => { musicBufferRef.current = decoded; })
+      .catch(() => {});
+
+    fetch('https://cdn.pixabay.com/download/audio/2025/05/18/audio_a3b384a2d2.mp3?filename=soundreality-explosion-fx-343683.mp3')
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(decoded => { explosionBufferRef.current = decoded; })
       .catch(() => {});
 
     function playMusic() {
@@ -812,7 +821,16 @@ export default function GamePage() {
                 s.bossHitSparks.push({ x: s.beam.x, y: s.beam.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 2, alpha: 1, size: 2 + Math.random() * 3.5 });
               }
               s.beam = null;
-              if (s.bossHealth <= 0) { s.bossPhase = 'dying'; s.bossDeathTimer = 0; s.bossBeams = []; }
+              if (s.bossHealth <= 0) {
+                s.bossPhase = 'dying'; s.bossDeathTimer = 0; s.bossBeams = [];
+                if (!explosionPlayedRef.current && explosionBufferRef.current && audioCtxRef.current) {
+                  explosionPlayedRef.current = true;
+                  const exSrc = audioCtxRef.current.createBufferSource();
+                  exSrc.buffer = explosionBufferRef.current;
+                  exSrc.connect(crusherRef.current ?? audioCtxRef.current.destination);
+                  exSrc.start();
+                }
+              }
             }
           }
           if (s.beam && (s.beam.x > W + 60 || s.beam.y < -60 || s.beam.y > H + 60)) s.beam = null;
