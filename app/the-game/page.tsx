@@ -962,25 +962,28 @@ export default function GamePage() {
           ctx.save();
           ctx.lineCap = 'butt';
           // Subtle dark vignette around crack origin
-          const vgx = s.bossX + 190, vgy = GROUND - BOSS_H + 212;
+          // crack origin scaled to new boss size (420x330 vs original 380x380)
+          const crackOffX = Math.round(BOSS_W * 0.5);   // 210
+          const crackOffY = Math.round(BOSS_H * 0.558); // 184
+          const vgx = s.bossX + crackOffX, vgy = GROUND - BOSS_H + crackOffY;
           const vgr = 30 + dmg * 18;
           const vg = ctx.createRadialGradient(vgx, vgy, 0, vgx, vgy, vgr);
           vg.addColorStop(0, `rgba(0,0,0,${dmg * 0.18})`);
           vg.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.fillStyle = vg;
           ctx.fillRect(vgx - vgr, vgy - vgr, vgr * 2, vgr * 2);
-          // Crack lines: dark core + faint bright edge for depth
+          // Crack lines: dark core + white center for visibility
           for (const c of BOSS_CRACKS) {
             if (c.dmg > dmg) continue;
-            const bx = s.bossX, by = GROUND - BOSS_H;
+            const bx = s.bossX + (crackOffX - 190), by = GROUND - BOSS_H + (crackOffY - 212);
             const x1 = Math.round(bx + c.x1) + 0.5, y1 = Math.round(by + c.y1) + 0.5;
             const x2 = Math.round(bx + c.x2) + 0.5, y2 = Math.round(by + c.y2) + 0.5;
             // thick black shadow crack
             ctx.strokeStyle = 'rgba(0,0,0,0.95)';
             ctx.lineWidth = 3.5;
             ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-            // bright pixel-crack center — visible on any background
-            ctx.strokeStyle = 'rgba(220,170,60,0.9)';
+            // white pixel-crack center
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
             ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
           }
