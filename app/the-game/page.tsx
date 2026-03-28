@@ -92,6 +92,8 @@ export default function GamePage() {
   const musicPlayingRef = useRef(false);
   const explosionBufferRef = useRef<AudioBuffer | null>(null);
   const explosionPlayedRef = useRef(false);
+  const victoryBufferRef = useRef<AudioBuffer | null>(null);
+  const victoryPlayedRef = useRef(false);
   const kaseyDialogIconRef = useRef<HTMLImageElement | null>(null);
   const markDialogIconRef = useRef<HTMLImageElement | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
@@ -247,6 +249,7 @@ export default function GamePage() {
     s.bossHitSparks = [];
     scoreSubmittedRef.current = false;
     explosionPlayedRef.current = false;
+    victoryPlayedRef.current = false;
     s.speed = OBSTACLE_SPEED_START;
     s.frame = 0;
     s.bgX = 0;
@@ -390,6 +393,12 @@ export default function GamePage() {
       .then(r => r.arrayBuffer())
       .then(buf => audioCtx.decodeAudioData(buf))
       .then(decoded => { explosionBufferRef.current = decoded; })
+      .catch(() => {});
+
+    fetch('https://cdn.pixabay.com/download/audio/2025/06/12/audio_542df1ee3b.mp3?filename=pwlpl-power-up-game-sound-effect-359227.mp3')
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(decoded => { victoryBufferRef.current = decoded; })
       .catch(() => {});
 
     function playMusic() {
@@ -697,7 +706,19 @@ export default function GamePage() {
             if (t < 60)       s.bossFlash = (t / 60) * 0.85;
             else if (t < 80)  s.bossFlash = 0.85 + (t - 60) / 20 * 0.15;
             else if (t < 115) s.bossFlash = 1 - (t - 80) / 35;
-            else { s.bossFlash = 0; s.bossShakeX = 0; s.bossShakeY = 0; s.bossPhase = 'dead'; }
+            else {
+              s.bossFlash = 0; s.bossShakeX = 0; s.bossShakeY = 0; s.bossPhase = 'dead';
+              if (!victoryPlayedRef.current && victoryBufferRef.current && audioCtxRef.current) {
+                victoryPlayedRef.current = true;
+                const vSrc = audioCtxRef.current.createBufferSource();
+                vSrc.buffer = victoryBufferRef.current;
+                const vGain = audioCtxRef.current.createGain();
+                vGain.gain.value = 3.0;
+                vSrc.connect(vGain);
+                vGain.connect(crusherRef.current ?? audioCtxRef.current.destination);
+                vSrc.start();
+              }
+            }
             // Spawn fragments at peak flash (t>=70)
             if (t >= 70 && !s.bossFragmentsSpawned) {
               s.bossFragmentsSpawned = true;
