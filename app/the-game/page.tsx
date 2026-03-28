@@ -710,13 +710,17 @@ export default function GamePage() {
               s.bossFlash = 0; s.bossShakeX = 0; s.bossShakeY = 0; s.bossPhase = 'dead';
               if (!victoryPlayedRef.current && victoryBufferRef.current && audioCtxRef.current) {
                 victoryPlayedRef.current = true;
-                const vSrc = audioCtxRef.current.createBufferSource();
-                vSrc.buffer = victoryBufferRef.current;
-                const vGain = audioCtxRef.current.createGain();
-                vGain.gain.value = 3.0;
-                vSrc.connect(vGain);
-                vGain.connect(crusherRef.current ?? audioCtxRef.current.destination);
-                vSrc.start();
+                const ac = audioCtxRef.current;
+                const resume = ac.state === 'suspended' ? ac.resume() : Promise.resolve();
+                resume.then(() => {
+                  const vSrc = ac.createBufferSource();
+                  vSrc.buffer = victoryBufferRef.current!;
+                  const vGain = ac.createGain();
+                  vGain.gain.value = 3.5;
+                  vSrc.connect(vGain);
+                  vGain.connect(ac.destination);
+                  vSrc.start();
+                });
               }
             }
             // Spawn fragments at peak flash (t>=70)
@@ -846,13 +850,17 @@ export default function GamePage() {
                 s.bossPhase = 'dying'; s.bossDeathTimer = 0; s.bossBeams = [];
                 if (!explosionPlayedRef.current && explosionBufferRef.current && audioCtxRef.current) {
                   explosionPlayedRef.current = true;
-                  const exSrc = audioCtxRef.current.createBufferSource();
-                  exSrc.buffer = explosionBufferRef.current;
-                  const exGain = audioCtxRef.current.createGain();
-                  exGain.gain.value = 2.5;
-                  exSrc.connect(exGain);
-                  exGain.connect(crusherRef.current ?? audioCtxRef.current.destination);
-                  exSrc.start();
+                  const ac = audioCtxRef.current;
+                  const resume = ac.state === 'suspended' ? ac.resume() : Promise.resolve();
+                  resume.then(() => {
+                    const exSrc = ac.createBufferSource();
+                    exSrc.buffer = explosionBufferRef.current!;
+                    const exGain = ac.createGain();
+                    exGain.gain.value = 2.5;
+                    exSrc.connect(exGain);
+                    exGain.connect(ac.destination);
+                    exSrc.start();
+                  });
                 }
               }
             }
