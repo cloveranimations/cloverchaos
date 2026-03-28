@@ -405,7 +405,22 @@ export default function GamePage() {
     fetch('https://cdn.pixabay.com/download/audio/2022/03/26/audio_b21b5a45dd.mp3?filename=freesound_community-energy-3-107098.mp3')
       .then(r => r.arrayBuffer())
       .then(buf => audioCtx.decodeAudioData(buf))
-      .then(decoded => { powerUpSfxRef.current = decoded; })
+      .then(decoded => {
+        // Pre-process: 4-bit quantization + 6x downsampling for true retro 8-bit
+        const downsample = 6;
+        const levels = Math.pow(2, 4); // 4-bit = 16 levels
+        const step = 2 / levels;
+        const out = audioCtx.createBuffer(decoded.numberOfChannels, decoded.length, decoded.sampleRate);
+        for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+          const inp = decoded.getChannelData(ch);
+          const outp = out.getChannelData(ch);
+          for (let i = 0; i < inp.length; i++) {
+            const held = inp[Math.floor(i / downsample) * downsample] ?? 0;
+            outp[i] = Math.round(held / step) * step;
+          }
+        }
+        powerUpSfxRef.current = out;
+      })
       .catch(() => {});
 
     function playMusic() {
@@ -807,7 +822,7 @@ export default function GamePage() {
                 const puGain = ac.createGain();
                 puGain.gain.value = 2.0;
                 puSrc.connect(puGain);
-                puGain.connect(crusherRef.current ?? ac.destination);
+                puGain.connect(ac.destination);
                 puSrc.start();
               });
             }
