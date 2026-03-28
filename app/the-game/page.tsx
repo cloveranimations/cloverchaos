@@ -347,7 +347,7 @@ export default function GamePage() {
     audioCtxRef.current = audioCtx;
 
     const gainNode = audioCtx.createGain();
-    gainNode.gain.value = 0.75;
+    gainNode.gain.value = 0.35;
     gainNode.connect(audioCtx.destination);
     gainNodeRef.current = gainNode;
 
@@ -827,7 +827,10 @@ export default function GamePage() {
                   explosionPlayedRef.current = true;
                   const exSrc = audioCtxRef.current.createBufferSource();
                   exSrc.buffer = explosionBufferRef.current;
-                  exSrc.connect(crusherRef.current ?? audioCtxRef.current.destination);
+                  const exGain = audioCtxRef.current.createGain();
+                  exGain.gain.value = 2.5;
+                  exSrc.connect(exGain);
+                  exGain.connect(crusherRef.current ?? audioCtxRef.current.destination);
                   exSrc.start();
                 }
               }
