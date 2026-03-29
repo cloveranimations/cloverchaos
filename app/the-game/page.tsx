@@ -288,6 +288,13 @@ export default function GamePage() {
   }, []);
 
   useEffect(() => {
+    fetch('/api/game-scores/me')
+      .then(r => r.json())
+      .then(d => { if (d?.score > 0) stateRef.current.hiScore = d.score; })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     const patImg = patImgRef.current;
     const wrapper = wrapperRef.current;
