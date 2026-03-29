@@ -662,6 +662,39 @@ export default function Home() {
               Subscribe on YouTube
             </a>
           </AnimatedElement>
+          <AnimatedElement delay={0.3}>
+            <a
+              href="https://www.patreon.com/cw/CloverrAnimations"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '12px',
+                background: 'transparent',
+                color: '#4ade80',
+                fontFamily: 'var(--font-display)',
+                fontWeight: '700',
+                fontSize: '16px',
+                padding: '14px 40px',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                border: '2px solid rgba(74,222,128,0.4)',
+                marginTop: '16px',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.9)';
+                (e.currentTarget as HTMLElement).style.background = 'rgba(74,222,128,0.08)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.4)';
+                (e.currentTarget as HTMLElement).style.background = 'transparent';
+              }}
+            >
+              Support us on Patreon!
+            </a>
+          </AnimatedElement>
         </div>
       </section>
 
