@@ -131,6 +131,7 @@ export default function GamePage() {
     powerUps: [] as { x: number; y: number }[],
     powerUpNextScore: 60,
     patGlow: 0,
+    hurtFlash: 0,
     beam: null as { x: number; y: number; vx: number; vy: number; angle: number; target: string } | null,
     kaseyStunUntil: 0,
     markStunUntil: 0,
@@ -225,6 +226,7 @@ export default function GamePage() {
     s.powerUps = [];
     s.powerUpNextScore = 60;
     s.patGlow = 0;
+    s.hurtFlash = 0;
     s.beam = null;
     s.kaseyStunUntil = 0;
     s.markStunUntil = 0;
@@ -689,6 +691,7 @@ export default function GamePage() {
           if (s.invincible > 0) return;
           s.health -= dmg;
           s.invincible = 80;
+          s.hurtFlash = 12;
           playHurt();
           if (s.health <= 0) {
             s.dead = true;
@@ -987,6 +990,7 @@ export default function GamePage() {
         }
 
         if (s.patGlow > 0) s.patGlow--;
+        if (s.hurtFlash > 0) s.hurtFlash--;
         if (s.kaseyHitFlash > 0) s.kaseyHitFlash--;
         if (s.markHitFlash > 0) s.markHitFlash--;
 
@@ -1499,6 +1503,22 @@ export default function GamePage() {
         ctx.fillStyle = '#94a3b8';
         ctx.fillText('Press P or click II to resume', W / 2, H / 2 + 24);
         ctx.textAlign = 'left';
+      }
+
+      // Screen tints
+      if (s.hurtFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = (s.hurtFlash / 12) * 0.35;
+        ctx.fillStyle = '#ff2222';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
+      if (s.patGlow > 0) {
+        ctx.save();
+        ctx.globalAlpha = (s.patGlow / 40) * 0.25;
+        ctx.fillStyle = '#4ade80';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
       }
 
       rafRef.current = requestAnimationFrame(loop);
