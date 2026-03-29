@@ -582,7 +582,14 @@ export default function GamePage() {
     function handleKey(e: KeyboardEvent) {
       if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
       if (e.code === 'KeyP') { e.preventDefault(); togglePause(); }
-      if (e.code === 'KeyF') { e.preventDefault(); toggleFullscreen(); }
+      if (e.code === 'KeyF') {
+        e.preventDefault();
+        if (!document.fullscreenElement) {
+          wrapper?.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
       if (e.code === 'Digit5') {
         const s = stateRef.current;
         if (s.running && !s.dead) { s.score = 500; s.powerUpNextScore = 530; s.health = 3; s.invincible = 600; s.bossHealth = 5; }
