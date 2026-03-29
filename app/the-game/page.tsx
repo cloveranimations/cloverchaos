@@ -395,7 +395,21 @@ export default function GamePage() {
     fetch('https://cdn.pixabay.com/download/audio/2025/05/18/audio_a3b384a2d2.mp3?filename=soundreality-explosion-fx-343683.mp3')
       .then(r => r.arrayBuffer())
       .then(buf => audioCtx.decodeAudioData(buf))
-      .then(decoded => { explosionBufferRef.current = decoded; })
+      .then(decoded => {
+        const downsample = 6;
+        const levels = Math.pow(2, 4);
+        const step = 2 / levels;
+        const out = audioCtx.createBuffer(decoded.numberOfChannels, decoded.length, decoded.sampleRate);
+        for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+          const inp = decoded.getChannelData(ch);
+          const outp = out.getChannelData(ch);
+          for (let i = 0; i < inp.length; i++) {
+            const held = inp[Math.floor(i / downsample) * downsample] ?? 0;
+            outp[i] = Math.round(held / step) * step;
+          }
+        }
+        explosionBufferRef.current = out;
+      })
       .catch(() => {});
 
     fetch('https://cdn.pixabay.com/download/audio/2025/06/12/audio_542df1ee3b.mp3?filename=pwlpl-power-up-game-sound-effect-359227.mp3')
@@ -784,7 +798,7 @@ export default function GamePage() {
                   const vSrc = ac.createBufferSource();
                   vSrc.buffer = victoryBufferRef.current!;
                   const vGain = ac.createGain();
-                  vGain.gain.value = 3.5;
+                  vGain.gain.value = 1.2;
                   vSrc.connect(vGain);
                   vGain.connect(ac.destination);
                   vSrc.start();
@@ -941,7 +955,7 @@ export default function GamePage() {
                     const exSrc = ac.createBufferSource();
                     exSrc.buffer = explosionBufferRef.current!;
                     const exGain = ac.createGain();
-                    exGain.gain.value = 2.5;
+                    exGain.gain.value = 1.0;
                     exSrc.connect(exGain);
                     exGain.connect(ac.destination);
                     exSrc.start();
