@@ -95,6 +95,7 @@ export default function GamePage() {
   const victoryBufferRef = useRef<AudioBuffer | null>(null);
   const victoryPlayedRef = useRef(false);
   const powerUpSfxRef = useRef<AudioBuffer | null>(null);
+  const hurtSfxRef = useRef<AudioBuffer | null>(null);
   const kaseyDialogIconRef = useRef<HTMLImageElement | null>(null);
   const markDialogIconRef = useRef<HTMLImageElement | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
@@ -423,6 +424,12 @@ export default function GamePage() {
       })
       .catch(() => {});
 
+    fetch('https://cdn.pixabay.com/download/audio/2022/03/24/audio_b110c537c6.mp3?filename=freesound_community-hurt_c_08-102842.mp3')
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(decoded => { hurtSfxRef.current = decoded; })
+      .catch(() => {});
+
     function playMusic() {
       if (!musicBufferRef.current || musicPlayingRef.current) return;
       if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -462,6 +469,33 @@ export default function GamePage() {
         gainNode.gain.setValueAtTime(0.75, audioCtx.currentTime);
         poweringDownRef.current = false;
       }, duration * 1000 + 100);
+    }
+
+    function playHurt() {
+      const ac = audioCtxRef.current;
+      console.log('[hurt] called, ac=', ac?.state, 'buf=', !!hurtSfxRef.current);
+      if (!ac) return;
+      if (ac.state === 'suspended') ac.resume();
+      const gain = ac.createGain();
+      gain.gain.value = 2.5;
+      gain.connect(ac.destination);
+      if (hurtSfxRef.current) {
+        const src = ac.createBufferSource();
+        src.buffer = hurtSfxRef.current;
+        src.connect(gain);
+        src.start();
+      } else {
+        const now = ac.currentTime;
+        const osc = ac.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(700, now);
+        osc.frequency.linearRampToValueAtTime(250, now + 0.2);
+        gain.gain.setValueAtTime(1.5, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.connect(gain);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
     }
 
     // Load background images
@@ -630,6 +664,7 @@ export default function GamePage() {
           if (s.invincible > 0) return;
           s.health -= dmg;
           s.invincible = 80;
+          playHurt();
           if (s.health <= 0) {
             s.dead = true;
             s.hiScore = Math.max(s.hiScore, Math.floor(s.score));
@@ -820,7 +855,7 @@ export default function GamePage() {
                 const puSrc = ac.createBufferSource();
                 puSrc.buffer = powerUpSfxRef.current!;
                 const puGain = ac.createGain();
-                puGain.gain.value = 2.0;
+                puGain.gain.value = 0.7;
                 puSrc.connect(puGain);
                 puGain.connect(ac.destination);
                 puSrc.start();
@@ -861,6 +896,7 @@ export default function GamePage() {
           if (s.beam.target === 'kasey' && s.beam.x > kaseyVisX && s.beam.x < kaseyVisX + PAT_W && s.beam.y > kaseyVisY && s.beam.y < kaseyVisY + PAT_H) {
             s.kaseyStunUntil = s.score + 60;
             s.kaseyHitFlash = 30;
+            playHurt();
             s.fireballs = [];
             s.beam = null;
           }
@@ -868,12 +904,14 @@ export default function GamePage() {
           if (s.beam && s.beam.target === 'mark' && s.markActive && s.beam.x > markVisX && s.beam.x < markVisX + PAT_W && s.beam.y > GROUND - PAT_H && s.beam.y < GROUND) {
             s.markStunUntil = s.score + 60;
             s.markHitFlash = 30;
+            playHurt();
             s.drones = [];
             s.beam = null;
           }
           if (s.beam && s.beam.target === 'boss' && s.bossPhase === 'fighting') {
             if (s.beam.x > s.bossX && s.beam.x < s.bossX + BOSS_W && s.beam.y > GROUND - BOSS_H && s.beam.y < GROUND) {
               s.bossHealth--;
+              playHurt();
               // Hit sparks at impact point
               for (let i = 0; i < 14; i++) {
                 const ang = Math.random() * Math.PI * 2;
