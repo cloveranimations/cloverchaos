@@ -695,6 +695,9 @@ export default function Home() {
               Support us on Patreon!
             </a>
           </AnimatedElement>
+          <AnimatedElement delay={0.4}>
+            <p style={{ color: '#64748b', fontSize: '13px', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px', margin: '0' }}>Only for 4.99$ CAD — Animated Benefits Included!</p>
+          </AnimatedElement>
         </div>
       </section>
 
