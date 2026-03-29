@@ -16,7 +16,7 @@ export default function SubscribePage() {
             Join the Chaos
           </h1>
           <p style={{ fontSize: '18px', color: '#94a3b8', marginBottom: '48px', lineHeight: '1.8' }}>
-            All episodes are completely free. Subscribe on YouTube to get notified the moment new chapters drop.
+            All episodes are completely free. Subscribe on YouTube to get notified the moment new chapters drop. Support us on Patreon and see what benefits are included in our package!
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
             <a
