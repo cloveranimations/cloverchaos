@@ -99,7 +99,7 @@ const episodes = [
   {
     num: '05',
     title: 'Taradiddle',
-    desc: 'Phase two starts with a bang when Pat revisits ground zero of their old building. Gloom fills the air until he stumbles upon something more than just coordinates. He must assemble a crew not like the one before it. He is just too clueless to understand.',
+    desc: 'Pat returns to Montreal after 10 months and stumbles upon the old building, getting chased by Mark\'s drones. Saved by former agent McCallister and Velma, the trio hunts down Mark\'s mythical headquarters — only for Pat and Valentina to be captured by Mark himself.',
     duration: '13:06',
     tags: ['PHASE 2', 'ADVENTURE'],
     url: 'https://youtu.be/R8kc1_Nusrs',
@@ -577,7 +577,7 @@ export default function Home() {
                 },
                 {
                   chapter: 'Chapter 5: Taradiddle',
-                  text: '████████████████████████████████████████████████████████████████████████████████████████████████████████ — COMING SOON.',
+                  text: 'Mark evades the authority and escapes to his hideout. Pat comes back to Montreal after 10 months. Stumbles across the old run down building and gets chased by Mark\'s drones. He gets saved by Charles "Micheal" McCallister — the former agent — and Velma, on the hunt for answers as it is the first time they appear since Delta One, the spinoff film. All three hunt Mark\'s hideout until they stumble across his Headquarters, which former agent McCallister thought was a myth. They invade and Pat gets caught by Mark Heffley himself. Valentina is locked in the room as well. For a search for answers, Mark tries to see into the future of the Eclipse Project — the Stargazer was just a mere act and test for the Eclipse Project — by forcing a headset plugged to a screen.',
                 },
               ].map((item, idx) => (
                 <AnimatedElement key={idx} delay={idx * 0.1}>
