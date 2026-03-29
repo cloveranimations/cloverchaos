@@ -992,8 +992,9 @@ export default function GamePage() {
                   gain.gain.value = 0.12;
                   src.connect(gain);
                   gain.connect(ac.destination);
-                  src.start();
-                  src.stop(ac.currentTime + 3);
+                  const t = ac.currentTime;
+                  src.start(t);
+                  src.stop(t + 3);
                 });
               }
               break;
