@@ -478,18 +478,21 @@ export default function GamePage() {
       resume.then(() => {
         const gain = ac.createGain();
         gain.connect(ac.destination);
+        const pitch = 0.8 + Math.random() * 0.5;
         if (hurtSfxRef.current) {
           gain.gain.value = 2.5;
           const src = ac.createBufferSource();
           src.buffer = hurtSfxRef.current;
+          src.playbackRate.value = pitch;
           src.connect(gain);
           src.start();
         } else {
           const now = ac.currentTime;
+          const baseFreq = 500 + Math.random() * 400;
           const osc = ac.createOscillator();
           osc.type = 'square';
-          osc.frequency.setValueAtTime(700, now);
-          osc.frequency.linearRampToValueAtTime(250, now + 0.2);
+          osc.frequency.setValueAtTime(baseFreq, now);
+          osc.frequency.linearRampToValueAtTime(baseFreq * 0.35, now + 0.2);
           gain.gain.setValueAtTime(1.5, now);
           gain.gain.linearRampToValueAtTime(0, now + 0.2);
           osc.connect(gain);
@@ -855,8 +858,9 @@ export default function GamePage() {
               resume.then(() => {
                 const puSrc = ac.createBufferSource();
                 puSrc.buffer = powerUpSfxRef.current!;
+                puSrc.playbackRate.value = 0.85 + Math.random() * 0.3;
                 const puGain = ac.createGain();
-                puGain.gain.value = 0.7;
+                puGain.gain.value = 0.25;
                 puSrc.connect(puGain);
                 puGain.connect(ac.destination);
                 puSrc.start();
