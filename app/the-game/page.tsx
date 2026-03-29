@@ -473,29 +473,30 @@ export default function GamePage() {
 
     function playHurt() {
       const ac = audioCtxRef.current;
-      console.log('[hurt] called, ac=', ac?.state, 'buf=', !!hurtSfxRef.current);
       if (!ac) return;
-      if (ac.state === 'suspended') ac.resume();
-      const gain = ac.createGain();
-      gain.gain.value = 2.5;
-      gain.connect(ac.destination);
-      if (hurtSfxRef.current) {
-        const src = ac.createBufferSource();
-        src.buffer = hurtSfxRef.current;
-        src.connect(gain);
-        src.start();
-      } else {
-        const now = ac.currentTime;
-        const osc = ac.createOscillator();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(700, now);
-        osc.frequency.linearRampToValueAtTime(250, now + 0.2);
-        gain.gain.setValueAtTime(1.5, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.2);
-        osc.connect(gain);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      }
+      const resume = ac.state === 'suspended' ? ac.resume() : Promise.resolve();
+      resume.then(() => {
+        const gain = ac.createGain();
+        gain.connect(ac.destination);
+        if (hurtSfxRef.current) {
+          gain.gain.value = 2.5;
+          const src = ac.createBufferSource();
+          src.buffer = hurtSfxRef.current;
+          src.connect(gain);
+          src.start();
+        } else {
+          const now = ac.currentTime;
+          const osc = ac.createOscillator();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(700, now);
+          osc.frequency.linearRampToValueAtTime(250, now + 0.2);
+          gain.gain.setValueAtTime(1.5, now);
+          gain.gain.linearRampToValueAtTime(0, now + 0.2);
+          osc.connect(gain);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        }
+      });
     }
 
     // Load background images
