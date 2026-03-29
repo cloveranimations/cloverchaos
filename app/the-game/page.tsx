@@ -96,6 +96,7 @@ export default function GamePage() {
   const victoryPlayedRef = useRef(false);
   const powerUpSfxRef = useRef<AudioBuffer | null>(null);
   const hurtSfxRef = useRef<AudioBuffer | null>(null);
+  const dialogueSfxRef = useRef<AudioBuffer | null>(null);
   const kaseyDialogIconRef = useRef<HTMLImageElement | null>(null);
   const markDialogIconRef = useRef<HTMLImageElement | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
@@ -428,6 +429,12 @@ export default function GamePage() {
       .then(r => r.arrayBuffer())
       .then(buf => audioCtx.decodeAudioData(buf))
       .then(decoded => { hurtSfxRef.current = decoded; })
+      .catch(() => {});
+
+    fetch('https://cdn.pixabay.com/download/audio/2025/06/11/audio_1f865f7b50.mp3?filename=creatorshome-video-game-speak-358238.mp3')
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(decoded => { dialogueSfxRef.current = decoded; })
       .catch(() => {});
 
     function playMusic() {
@@ -975,6 +982,19 @@ export default function GamePage() {
             if (!t.done && Math.floor(s.score) >= t.score) {
               t.done = true;
               s.dialogue = { speaker: t.speaker, lines: t.lines, lineIdx: 0, charIdx: 0, phase: 'slidein', slideY: 90, waitTimer: 0 };
+              if (dialogueSfxRef.current && audioCtxRef.current) {
+                const ac = audioCtxRef.current;
+                const resume = ac.state === 'suspended' ? ac.resume() : Promise.resolve();
+                resume.then(() => {
+                  const src = ac.createBufferSource();
+                  src.buffer = dialogueSfxRef.current!;
+                  const gain = ac.createGain();
+                  gain.gain.value = 0.12;
+                  src.connect(gain);
+                  gain.connect(ac.destination);
+                  src.start();
+                });
+              }
               break;
             }
           }
