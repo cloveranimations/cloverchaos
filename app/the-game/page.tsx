@@ -487,7 +487,7 @@ export default function GamePage() {
         gain.connect(ac.destination);
         const pitch = 0.8 + Math.random() * 0.5;
         if (hurtSfxRef.current) {
-          gain.gain.value = 2.5;
+          gain.gain.value = 0.8;
           const src = ac.createBufferSource();
           src.buffer = hurtSfxRef.current;
           src.playbackRate.value = pitch;
@@ -993,6 +993,7 @@ export default function GamePage() {
                   src.connect(gain);
                   gain.connect(ac.destination);
                   src.start();
+                  src.stop(ac.currentTime + 3);
                 });
               }
               break;
