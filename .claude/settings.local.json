@@ -4,7 +4,20 @@
       "Bash(vercel --prod)",
       "Bash(node_modules/.bin/vercel --prod)",
       "Bash(./node_modules/.bin/vercel --prod)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(curl -s \"https://cloverchaos.com/api/generate-article\")",
+      "Bash(curl -si \"https://cloverchaos.com/api/generate-article\")",
+      "Bash(for i:*)",
+      "Bash(do echo:*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''✓'''', d.get\\(''''article'''',{}\\).get\\(''''title'''',''''failed''''\\)\\)\")",
+      "Bash(done)",
+      "Bash(npx vercel:*)",
+      "Read(//c/Users/patnp007/.local/share/com.vercel.cli/**)",
+      "Read(//c/Users/patnp007/AppData/Roaming/com.vercel.cli/**)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\(''''token'''',''''''''\\) or d.items\\(\\)\\)[:1]\\)\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
