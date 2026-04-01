@@ -175,6 +175,10 @@ export default function Home() {
           padding: '80px 20px 40px',
           position: 'relative',
           overflow: 'hidden',
+          backgroundImage: 'url(https://i.imgur.com/9drHW0y.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
         }}
       >
         <div style={{ maxWidth: '1000px', textAlign: 'center' }}>
