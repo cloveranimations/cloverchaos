@@ -175,14 +175,13 @@ export default function Home() {
           padding: '80px 20px 40px',
           position: 'relative',
           overflow: 'hidden',
-          backgroundImage: 'url(https://i.imgur.com/9drHW0y.jpg)',
+          backgroundImage: 'linear-gradient(rgba(0,0,0,0.78), rgba(0,0,0,0.78)), url(https://i.imgur.com/9drHW0y.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
         }}
       >
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 0 }} />
-        <div style={{ maxWidth: '1000px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+        <div style={{ maxWidth: '1000px', textAlign: 'center' }}>
           <AnimatedElement delay={0.1}>
             <span
               style={{
