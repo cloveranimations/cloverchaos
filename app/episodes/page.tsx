@@ -45,8 +45,15 @@ export default function EpisodesPage() {
       <Navigation />
       <style>{`@keyframes fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 
-      <section style={{ padding: '140px 20px 100px' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+      <section style={{ padding: '140px 20px 100px', position: 'relative', overflow: 'hidden' }}>
+        {/* Video background */}
+        <iframe
+          src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&playlist=zXVoG3z8CMo&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
+          allow="autoplay; encrypted-media"
+          style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.78vh', border: 'none', pointerEvents: 'none', zIndex: 0 }}
+        />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1 }} />
+        <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
           <AnimatedElement>
             <div style={{ textAlign: 'center', marginBottom: '64px' }}>
               <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '12px', letterSpacing: '2px', color: '#4ade80', marginBottom: '16px', textTransform: 'uppercase' }}>Phase One</span>

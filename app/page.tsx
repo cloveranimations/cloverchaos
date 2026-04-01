@@ -298,10 +298,14 @@ export default function Home() {
       {/* EPISODES SECTION */}
       <section id="episodes" style={{ padding: '100px 20px', position: 'relative', overflow: 'hidden' }}>
         {/* Video background */}
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', backgroundImage: 'url(https://img.youtube.com/vi/zXVoG3z8CMo/maxresdefault.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(4px)', transform: 'scale(1.05)' }} />
+        <iframe
+          src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&playlist=zXVoG3z8CMo&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
+          allow="autoplay; encrypted-media"
+          style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.78vh', border: 'none', pointerEvents: 'none', zIndex: 0 }}
+        />
         {/* Dark overlay over video */}
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 0 }} />
-        <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1 }} />
+        <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
           <AnimatedElement>
             <div style={{ marginBottom: '64px', textAlign: 'center' }}>
               <span
