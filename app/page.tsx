@@ -296,15 +296,16 @@ export default function Home() {
       </section>
 
       {/* EPISODES SECTION */}
-      <section id="episodes" style={{ padding: '100px 20px', minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
-        {/* Video background */}
-        <iframe
-          src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&playlist=zXVoG3z8CMo&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
-          allow="autoplay; encrypted-media"
-          style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.78vh', border: 'none', pointerEvents: 'none', zIndex: 0 }}
-        />
-        {/* Dark overlay over video */}
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1 }} />
+      <section id="episodes" style={{ padding: '100px 20px', minHeight: '100vh', position: 'relative', overflow: 'hidden', backgroundImage: 'linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url(https://img.youtube.com/vi/zXVoG3z8CMo/maxresdefault.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        {/* Video background — plays on top of thumbnail fallback */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none' }}>
+          <iframe
+            src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&playlist=zXVoG3z8CMo&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
+            allow="autoplay; encrypted-media"
+            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '56.25vw', minHeight: '100vh', minWidth: '177.78vh', border: 'none', pointerEvents: 'none' }}
+          />
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)' }} />
+        </div>
         <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
           <AnimatedElement>
             <div style={{ marginBottom: '64px', textAlign: 'center' }}>
@@ -456,7 +457,7 @@ export default function Home() {
       </section>
 
       {/* CHARACTERS SECTION */}
-      <section id="characters" style={{ padding: '100px 20px' }}>
+      <section id="characters" style={{ padding: '100px 20px', background: '#030a03' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
           <AnimatedElement>
             <div style={{ textAlign: 'center', marginBottom: '64px' }}>
@@ -541,7 +542,7 @@ export default function Home() {
       </section>
 
       {/* ABOUT SECTION */}
-      <section id="about" style={{ padding: '100px 20px' }}>
+      <section id="about" style={{ padding: '100px 20px', background: '#030a03' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
           <AnimatedElement>
             <div style={{ marginBottom: '48px' }}>
