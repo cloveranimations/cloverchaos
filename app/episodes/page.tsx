@@ -45,7 +45,7 @@ export default function EpisodesPage() {
       <Navigation />
       <style>{`@keyframes fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 
-      <section style={{ padding: '140px 20px 100px', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: '140px 20px 100px', minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
         {/* Video background */}
         <iframe
           src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&playlist=zXVoG3z8CMo&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"

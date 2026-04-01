@@ -296,7 +296,7 @@ export default function Home() {
       </section>
 
       {/* EPISODES SECTION */}
-      <section id="episodes" style={{ padding: '100px 20px', position: 'relative', overflow: 'hidden' }}>
+      <section id="episodes" style={{ padding: '100px 20px', minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
         {/* Video background */}
         <iframe
           src="https://www.youtube.com/embed/zXVoG3z8CMo?autoplay=1&mute=1&loop=1&playlist=zXVoG3z8CMo&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
