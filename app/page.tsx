@@ -605,7 +605,10 @@ export default function Home() {
         id="subscribe"
         style={{
           padding: '100px 20px',
-          background: 'linear-gradient(180deg, rgba(74, 222, 128, 0.05) 0%, rgba(0,0,0,0) 100%)',
+          backgroundImage: 'linear-gradient(rgba(0,0,0,0.78), rgba(0,0,0,0.78)), url(https://i.imgur.com/9drHW0y.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
           textAlign: 'center',
         }}
       >
