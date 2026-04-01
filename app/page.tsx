@@ -103,7 +103,7 @@ const episodes = [
     duration: '13:06',
     tags: ['PHASE 2', 'ADVENTURE'],
     url: 'https://youtu.be/R8kc1_Nusrs',
-    thumbnail: 'https://i.imgur.com/NQqfJpj.png',
+    thumbnail: 'https://img.youtube.com/vi/R8kc1_Nusrs/maxresdefault.jpg',
   },
   { num: '06', title: 'Death over Deal', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
   { num: '07', title: 'Catalyst', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },

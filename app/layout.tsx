@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     siteName: 'Clover Chaos',
     locale: 'en_CA',
     images: [
-      { url: 'https://i.imgur.com/NQqfJpj.png', width: 1280, height: 720, alt: 'Clover Chaos Episode 5 - Taradiddle' },
+      { url: 'https://img.youtube.com/vi/R8kc1_Nusrs/maxresdefault.jpg', width: 1280, height: 720, alt: 'Clover Chaos Episode 5 - Taradiddle' },
       { url: 'https://img.youtube.com/vi/KRkx658fbEk/maxresdefault.jpg', width: 1280, height: 720, alt: 'Clover Chaos - Indie Animated Series' },
       { url: 'https://img.youtube.com/vi/K3Da51RfROM/maxresdefault.jpg', width: 1280, height: 720, alt: 'Clover Chaos Episode 4 - A Fading Shamrock' },
     ],
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Clover Chaos | Free Indie Animated Series',
     description: 'A free indie animated web series set in 2018 Montreal by Cloverr Animations. Watch all episodes free on YouTube.',
-    images: ['https://i.imgur.com/NQqfJpj.png'],
+    images: ['https://img.youtube.com/vi/R8kc1_Nusrs/maxresdefault.jpg'],
     creator: '@cloverranimations',
   },
   alternates: { canonical: 'https://cloverchaos.com' },

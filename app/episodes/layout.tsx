@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     title: 'Episodes | Clover Chaos',
     description: 'Watch all episodes of Clover Chaos free on YouTube. Phase 1 and Phase 2 available now.',
     url: 'https://cloverchaos.com/episodes',
-    images: [{ url: 'https://i.imgur.com/NQqfJpj.png', width: 1280, height: 720, alt: 'Clover Chaos Episodes' }],
+    images: [{ url: 'https://img.youtube.com/vi/R8kc1_Nusrs/maxresdefault.jpg', width: 1280, height: 720, alt: 'Clover Chaos Episodes' }],
   },
   alternates: { canonical: 'https://cloverchaos.com/episodes' },
 };
