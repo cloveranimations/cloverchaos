@@ -181,7 +181,8 @@ export default function Home() {
           backgroundRepeat: 'no-repeat',
         }}
       >
-        <div style={{ maxWidth: '1000px', textAlign: 'center' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 0 }} />
+        <div style={{ maxWidth: '1000px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
           <AnimatedElement delay={0.1}>
             <span
               style={{
