@@ -255,6 +255,7 @@ export default function Home() {
           <AnimatedElement delay={0.4}>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '28px' }}>
               <a href="https://www.youtube.com/@cloverranimations" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Watch Now</a>
+              <a href="https://hexagon-guava-t9tf.squarespace.com/" target="_blank" rel="noopener noreferrer" className="btn btn-primary">Shop Now</a>
               <a href="https://www.patreon.com/cw/CloverrAnimations" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">Support Us!</a>
               <a href="https://clover-chaos.fandom.com/wiki/Clover_Chaos_Wiki" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">Know More</a>
               <a href="#episodes" className="btn btn-secondary">View Episodes</a>
