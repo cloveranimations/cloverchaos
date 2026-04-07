@@ -457,6 +457,50 @@ export default function Home() {
         </div>
       </section>
 
+      {/* SHOP SECTION */}
+      <section style={{ padding: '100px 20px', background: '#030a03' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
+          <AnimatedElement>
+            <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '12px', letterSpacing: '2px', color: '#4ade80', marginBottom: '16px', textTransform: 'uppercase' }}>Official Merch</span>
+            <h2 style={{ fontSize: 'clamp(28px, 4vw, 52px)', fontFamily: 'var(--font-display)', fontWeight: '700', color: '#4ade80', marginBottom: '12px' }}>Shop Now</h2>
+            <p style={{ color: '#94a3b8', fontSize: '15px', marginBottom: '56px' }}>Official Clover Chaos prints — available on Etsy.</p>
+          </AnimatedElement>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', justifyItems: 'center' }}>
+            <AnimatedElement delay={0.1}>
+              <a href="https://www.etsy.com/ca/listing/4482027973/clover-chaos-phase-two-poster-vertical?sr_prefetch=0&pf_from=shop_home&ref=shop_home_active_2&logging_key=c00fb1f671849df5abfd1b622e1a184d7dfb813d%3A4482027973" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
+                <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(74,222,128,0.15)', transition: 'all 0.3s ease' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.5)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.15)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}>
+                  <img src="https://i.imgur.com/HkNtmNW.jpg" alt="Clover Chaos Phase Two Poster Vertical" style={{ width: '100%', display: 'block', aspectRatio: '2/3', objectFit: 'cover' }} />
+                  <div style={{ padding: '16px', background: '#0d1f0d' }}>
+                    <p style={{ color: '#e2e8f0', fontFamily: 'var(--font-display)', fontWeight: '600', fontSize: '15px', marginBottom: '4px' }}>Phase Two — Vertical Poster</p>
+                    <p style={{ color: '#4ade80', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>Shop on Etsy →</p>
+                  </div>
+                </div>
+              </a>
+            </AnimatedElement>
+            <AnimatedElement delay={0.2}>
+              <a href="https://www.etsy.com/ca/listing/4482037424/clover-chaos-phase-two-matte-poster?ls=r&ref=related-1&content_source=bd9db4f4f51aff98d5bd73846dbec97e%253ALTd7b02a22070c33031870bf869b3e4049e8f06d60&logging_key=bd9db4f4f51aff98d5bd73846dbec97e%3ALTd7b02a22070c33031870bf869b3e4049e8f06d60" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
+                <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(74,222,128,0.15)', transition: 'all 0.3s ease' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.5)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.15)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}>
+                  <img src="https://i.imgur.com/EHyXPQB.jpg" alt="Clover Chaos Phase Two Matte Poster" style={{ width: '100%', display: 'block', aspectRatio: '2/3', objectFit: 'cover' }} />
+                  <div style={{ padding: '16px', background: '#0d1f0d' }}>
+                    <p style={{ color: '#e2e8f0', fontFamily: 'var(--font-display)', fontWeight: '600', fontSize: '15px', marginBottom: '4px' }}>Phase Two — Matte Poster</p>
+                    <p style={{ color: '#4ade80', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>Shop on Etsy →</p>
+                  </div>
+                </div>
+              </a>
+            </AnimatedElement>
+          </div>
+          <AnimatedElement delay={0.3}>
+            <a href="https://www.etsy.com/shop/CloverChaosDesigns" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '48px', background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)', color: '#000', fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '16px', padding: '14px 40px', borderRadius: '8px', textDecoration: 'none' }}>
+              View Full Shop
+            </a>
+          </AnimatedElement>
+        </div>
+      </section>
+
       {/* CHARACTERS SECTION */}
       <section id="characters" style={{ padding: '100px 20px', background: '#030a03' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
