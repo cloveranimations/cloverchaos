@@ -53,10 +53,12 @@ export default function Navigation() {
 
         {/* Desktop Menu */}
         <div className="hide-mobile" style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-          {['About', 'Episodes', 'Characters', 'Articles', 'Discussion', 'The Game', 'Subscribe'].map((item) => (
+          {['About', 'Episodes', 'Shop', 'Characters', 'Articles', 'Discussion', 'The Game', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={`/${item.toLowerCase().replace(/\s+/g, '-')}`}
+              href={item === 'Shop' ? 'https://www.etsy.com/shop/CloverChaosDesigns' : `/${item.toLowerCase().replace(/\s+/g, '-')}`}
+              target={item === 'Shop' ? '_blank' : undefined}
+              rel={item === 'Shop' ? 'noopener noreferrer' : undefined}
               style={{
                 color: item === 'The Game' ? '#4ade80' : '#e2e8f0',
                 fontSize: '14px',
@@ -65,12 +67,8 @@ export default function Navigation() {
                 position: 'relative',
                 transition: 'color 0.3s ease',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#4ade80';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = item === 'The Game' ? '#4ade80' : '#e2e8f0';
-              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#4ade80'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = item === 'The Game' ? '#4ade80' : '#e2e8f0'; }}
             >
               {item}
             </a>
@@ -105,10 +103,12 @@ export default function Navigation() {
           }}
           className="show-mobile"
         >
-          {['About', 'Episodes', 'Characters', 'Articles', 'Discussion', 'The Game', 'Subscribe'].map((item) => (
+          {['About', 'Episodes', 'Shop', 'Characters', 'Articles', 'Discussion', 'The Game', 'Subscribe'].map((item) => (
             <a
               key={item}
-              href={`/${item.toLowerCase().replace(/\s+/g, '-')}`}
+              href={item === 'Shop' ? 'https://www.etsy.com/shop/CloverChaosDesigns' : `/${item.toLowerCase().replace(/\s+/g, '-')}`}
+              target={item === 'Shop' ? '_blank' : undefined}
+              rel={item === 'Shop' ? 'noopener noreferrer' : undefined}
               onClick={() => setMobileOpen(false)}
               style={{ color: '#4ade80', fontSize: '14px' }}
             >
