@@ -484,7 +484,7 @@ export default function Home() {
                 <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(74,222,128,0.15)', transition: 'all 0.3s ease' }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.5)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.15)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}>
-                  <img src="https://i.imgur.com/EHyXPQB.jpg" alt="Clover Chaos Phase Two Matte Poster" style={{ width: '100%', display: 'block', aspectRatio: '2/3', objectFit: 'cover' }} />
+                  <img src="https://i.imgur.com/8FUHWTG.png" alt="Clover Chaos Phase Two Matte Poster" style={{ width: '100%', display: 'block', aspectRatio: '2/3', objectFit: 'cover' }} />
                   <div style={{ padding: '16px', background: '#0d1f0d' }}>
                     <p style={{ color: '#e2e8f0', fontFamily: 'var(--font-display)', fontWeight: '600', fontSize: '15px', marginBottom: '4px' }}>Phase Two — Matte Poster</p>
                     <p style={{ color: '#4ade80', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>Shop on Etsy →</p>
