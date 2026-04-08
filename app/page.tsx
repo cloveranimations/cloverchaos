@@ -458,14 +458,14 @@ export default function Home() {
       </section>
 
       {/* SHOP SECTION */}
-      <section style={{ padding: '100px 20px', background: '#030a03' }}>
-        <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
+      <section style={{ padding: '60px 20px', background: '#030a03' }}>
+        <div style={{ maxWidth: '560px', margin: '0 auto', textAlign: 'center' }}>
           <AnimatedElement>
             <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '12px', letterSpacing: '2px', color: '#4ade80', marginBottom: '16px', textTransform: 'uppercase' }}>Official Merch</span>
             <h2 style={{ fontSize: 'clamp(28px, 4vw, 52px)', fontFamily: 'var(--font-display)', fontWeight: '700', color: '#4ade80', marginBottom: '12px' }}>Shop Now</h2>
             <p style={{ color: '#94a3b8', fontSize: '15px', marginBottom: '56px' }}>Official Clover Chaos prints — available on Etsy.</p>
           </AnimatedElement>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', justifyItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', justifyItems: 'center' }}>
             <AnimatedElement delay={0.1}>
               <a href="https://www.etsy.com/ca/listing/4485329317/clover-chaos-phase-two-poster-horizontal" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
                 <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(74,222,128,0.15)', transition: 'all 0.3s ease' }}
