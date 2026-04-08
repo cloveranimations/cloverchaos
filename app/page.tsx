@@ -467,13 +467,13 @@ export default function Home() {
           </AnimatedElement>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', justifyItems: 'center' }}>
             <AnimatedElement delay={0.1}>
-              <a href="https://www.etsy.com/ca/listing/4482027973/clover-chaos-phase-two-poster-vertical?sr_prefetch=0&pf_from=shop_home&ref=shop_home_active_2&logging_key=c00fb1f671849df5abfd1b622e1a184d7dfb813d%3A4482027973" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
+              <a href="https://www.etsy.com/ca/listing/4485329317/clover-chaos-phase-two-poster-horizontal" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
                 <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(74,222,128,0.15)', transition: 'all 0.3s ease' }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.5)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,222,128,0.15)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}>
-                  <img src="https://i.imgur.com/HkNtmNW.jpg" alt="Clover Chaos Phase Two Poster Vertical" style={{ width: '100%', display: 'block', aspectRatio: '2/3', objectFit: 'cover' }} />
+                  <img src="https://i.etsystatic.com/65347548/r/il/edad0d/7939567723/il_1588xN.7939567723_g9g3.jpg" alt="Clover Chaos Phase Two Poster Horizontal" style={{ width: '100%', display: 'block', aspectRatio: '2/3', objectFit: 'cover' }} />
                   <div style={{ padding: '16px', background: '#0d1f0d' }}>
-                    <p style={{ color: '#e2e8f0', fontFamily: 'var(--font-display)', fontWeight: '600', fontSize: '15px', marginBottom: '4px' }}>Phase Two — Vertical Poster</p>
+                    <p style={{ color: '#e2e8f0', fontFamily: 'var(--font-display)', fontWeight: '600', fontSize: '15px', marginBottom: '4px' }}>Phase Two — Horizontal Poster</p>
                     <p style={{ color: '#4ade80', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>Shop on Etsy →</p>
                   </div>
                 </div>
