@@ -207,7 +207,7 @@ export default function Home() {
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
               <Image
                 src="/logo.png"
-                alt="Clover Chaos Logo"
+                alt="Clover Chaos animated series official logo"
                 width={120}
                 height={120}
                 priority
@@ -347,6 +347,7 @@ export default function Home() {
               <AnimatedElement key={ep.num} delay={idx * 0.1}>
                 <div
                   className="card"
+                  aria-label={`Clover Chaos ${ep.title} - Episode ${ep.num}`}
                   style={{
                     position: 'relative',
                     overflow: 'hidden',
@@ -542,6 +543,7 @@ export default function Home() {
                   <AnimatedElement key={char.name} delay={idx * 0.1} direction="up">
                     <div
                       className="card"
+                      aria-label={`Clover Chaos character - ${char.name}`}
                       style={{
                         padding: '0',
                         overflow: 'hidden',
@@ -664,7 +666,7 @@ export default function Home() {
       >
         <div style={{ maxWidth: '700px', margin: '0 auto' }}>
           <AnimatedElement>
-            <img src="/logo.png" style={{ width: '80px', height: '80px', borderRadius: '50%', display: 'block', margin: '0 auto 24px', filter: 'drop-shadow(0 0 20px rgba(74,222,128,0.4))' }} />
+            <img src="/logo.png" alt="Clover Chaos official logo" style={{ width: '80px', height: '80px', borderRadius: '50%', display: 'block', margin: '0 auto 24px', filter: 'drop-shadow(0 0 20px rgba(74,222,128,0.4))' }} />
             <h2
               style={{
                 fontSize: 'clamp(36px, 5vw, 72px)',
@@ -769,7 +771,7 @@ export default function Home() {
         }}
       >
         <div style={{ marginBottom: '16px' }}>
-          <img src="/logo.png" style={{ width: '48px', height: '48px', borderRadius: '50%', opacity: 0.7, display: 'inline-block' }} />
+          <img src="/logo.png" alt="Clover Chaos official logo" style={{ width: '48px', height: '48px', borderRadius: '50%', opacity: 0.7, display: 'inline-block' }} />
         </div>
         <p style={{ marginBottom: '16px' }}>&copy; {new Date().getFullYear()} Clover Chaos — Made with chaos &amp; chlorophyll</p>
         <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', flexWrap: 'wrap' }}>

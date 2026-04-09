@@ -11,7 +11,7 @@ export default function SubscribePage() {
 
       <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '140px 20px 100px', textAlign: 'center', backgroundImage: 'linear-gradient(rgba(0,0,0,0.78), rgba(0,0,0,0.78)), url(https://i.imgur.com/9drHW0y.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
         <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-          <img src="/logo.png" style={{ width: '100px', height: '100px', borderRadius: '50%', display: 'block', margin: '0 auto 32px', filter: 'drop-shadow(0 0 20px rgba(74,222,128,0.4))' }} />
+          <img src="/logo.png" alt="Clover Chaos official logo" style={{ width: '100px', height: '100px', borderRadius: '50%', display: 'block', margin: '0 auto 32px', filter: 'drop-shadow(0 0 20px rgba(74,222,128,0.4))' }} />
           <h1 style={{ fontSize: 'clamp(36px, 5vw, 72px)', fontFamily: 'Cubano, var(--font-display)', fontWeight: '700', marginBottom: '24px', background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #16a34a 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
             Join the Chaos
           </h1>

@@ -36,7 +36,7 @@ export default function Navigation() {
       <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {/* Logo */}
         <a href={isSubPage ? '/' : '#'} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <img src="/logo.png" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+          <img src="/logo.png" alt="Clover Chaos official logo" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
           <span
             style={{
               fontFamily: 'var(--font-display)',
