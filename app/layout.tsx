@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Providers from './Providers';
+import CookieBanner from './CookieBanner';
 
 export const metadata: Metadata = {
   title: {
@@ -127,6 +128,7 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>{children}</Providers>
+        <CookieBanner />
       </body>
     </html>
   );
