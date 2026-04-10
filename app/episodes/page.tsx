@@ -66,9 +66,10 @@ export default function EpisodesPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
             {episodes.map((ep, idx) => (
               <AnimatedElement key={ep.num} delay={idx * 0.1}>
+                <a href={ep.url || undefined} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
                 <div
                   className="card"
-                  style={{ position: 'relative', overflow: 'hidden', cursor: 'pointer', backgroundImage: ep.thumbnail ? `url(${ep.thumbnail})` : 'none', backgroundColor: ep.thumbnail ? 'transparent' : '#0f172a', backgroundSize: 'cover', backgroundPosition: 'center', height: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0', filter: ep.thumbnail ? 'none' : undefined }}
+                  style={{ position: 'relative', overflow: 'hidden', cursor: ep.url ? 'pointer' : 'default', backgroundImage: ep.thumbnail ? `url(${ep.thumbnail})` : 'none', backgroundColor: ep.thumbnail ? 'transparent' : '#0f172a', backgroundSize: 'cover', backgroundPosition: 'center', height: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0', filter: ep.thumbnail ? 'none' : undefined }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74, 222, 128, 0.5)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(226, 232, 240, 0.1)'; }}
                 >
@@ -92,6 +93,7 @@ export default function EpisodesPage() {
                     </div>
                   </div>
                 </div>
+                </a>
               </AnimatedElement>
             ))}
           </div>

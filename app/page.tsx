@@ -345,13 +345,14 @@ export default function Home() {
           >
             {episodes.map((ep, idx) => (
               <AnimatedElement key={ep.num} delay={idx * 0.1}>
+                <a href={ep.url || undefined} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
                 <div
                   className="card"
                   aria-label={`Clover Chaos ${ep.title} - Episode ${ep.num}`}
                   style={{
                     position: 'relative',
                     overflow: 'hidden',
-                    cursor: 'pointer',
+                    cursor: ep.url ? 'pointer' : 'default',
                     backgroundImage: ep.thumbnail ? `url(${ep.thumbnail})` : 'none',
                     backgroundColor: ep.thumbnail ? 'transparent' : '#0f172a',
                     backgroundSize: 'cover',
@@ -452,6 +453,7 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+                </a>
               </AnimatedElement>
             ))}
           </div>
