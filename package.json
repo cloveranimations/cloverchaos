@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@types/matter-js": "^0.20.2",
+    "matter-js": "^0.20.0",
     "next": "16.2.1",
     "next-auth": "^5.0.0-beta.30",
     "react": "19.2.4",
