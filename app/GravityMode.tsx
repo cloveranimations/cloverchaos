@@ -13,8 +13,70 @@ const CHARACTERS = [
   'https://i.imgur.com/UfMmcDV.png',
 ];
 
-const COUNT = CHARACTERS.length;
-const SIZE = 100;
+const SIZE = 120;
+
+type Vec2 = { x: number; y: number };
+
+function convexHull(points: Vec2[]): Vec2[] {
+  const n = points.length;
+  if (n < 3) return points;
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  const lower: Vec2[] = [];
+  for (const p of sorted) {
+    while (lower.length >= 2) {
+      const o = lower[lower.length - 2], a = lower[lower.length - 1];
+      if ((a.x - o.x) * (p.y - o.y) - (a.y - o.y) * (p.x - o.x) <= 0) lower.pop();
+      else break;
+    }
+    lower.push(p);
+  }
+  const upper: Vec2[] = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i];
+    while (upper.length >= 2) {
+      const o = upper[upper.length - 2], a = upper[upper.length - 1];
+      if ((a.x - o.x) * (p.y - o.y) - (a.y - o.y) * (p.x - o.x) <= 0) upper.pop();
+      else break;
+    }
+    upper.push(p);
+  }
+  lower.pop();
+  upper.pop();
+  return [...lower, ...upper];
+}
+
+function getSilhouette(img: HTMLImageElement, size: number): Vec2[] {
+  const off = document.createElement('canvas');
+  off.width = size;
+  off.height = size;
+  const octx = off.getContext('2d', { willReadFrequently: true })!;
+  octx.drawImage(img, 0, 0, size, size);
+  const { data } = octx.getImageData(0, 0, size, size);
+  const pts: Vec2[] = [];
+  const step = 3;
+  for (let y = 0; y < size; y += step) {
+    for (let x = 0; x < size; x += step) {
+      if (data[(y * size + x) * 4 + 3] > 20) {
+        pts.push({ x: x - size / 2, y: y - size / 2 });
+      }
+    }
+  }
+  const hull = convexHull(pts);
+  // Center hull around its centroid so body.position ≈ image center
+  const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length;
+  const cy = hull.reduce((s, p) => s + p.y, 0) / hull.length;
+  return hull.map(p => ({ x: p.x - cx, y: p.y - cy }));
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 
 export default function GravityMode() {
   const [active, setActive] = useState(false);
@@ -42,7 +104,12 @@ export default function GravityMode() {
 
     let alive = true;
 
-    import('matter-js').then((M) => {
+    async function init() {
+      const [M, ...imgs] = await Promise.all([
+        import('matter-js'),
+        ...CHARACTERS.map(loadImage),
+      ]);
+
       if (!alive || !canvasRef.current) return;
 
       const canvas = canvasRef.current;
@@ -63,31 +130,33 @@ export default function GravityMode() {
         M.Bodies.rectangle(W + pad, H / 2, pad * 2, H * 2, { isStatic: true }),
       ];
 
-      // Preload images
-      const imgs = CHARACTERS.map(src => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = src;
-        return img;
-      });
-
-      // Spawn bodies scattered within viewport
       const bodyData: Array<{ body: any; img: HTMLImageElement }> = [];
-      for (let i = 0; i < COUNT; i++) {
-        const half = SIZE / 2;
-        const body = M.Bodies.rectangle(
-          half + Math.random() * (W - SIZE),
-          half + Math.random() * (H - SIZE),
-          SIZE,
-          SIZE,
-          { restitution: 0.55, friction: 0.1, frictionAir: 0.01 }
-        );
-        bodyData.push({ body, img: imgs[i] });
+      for (let i = 0; i < imgs.length; i++) {
+        const img = imgs[i];
+        const vertices = getSilhouette(img, SIZE);
+        const spawnX = SIZE / 2 + Math.random() * (W - SIZE);
+        const spawnY = SIZE / 2 + Math.random() * (H - SIZE);
+
+        let body: any;
+        try {
+          body = (M.Bodies as any).fromVertices(spawnX, spawnY, vertices, {
+            restitution: 0.5,
+            friction: 0.1,
+            frictionAir: 0.01,
+          }, true);
+          M.Body.setPosition(body, { x: spawnX, y: spawnY });
+        } catch {
+          body = M.Bodies.rectangle(spawnX, spawnY, SIZE, SIZE, {
+            restitution: 0.5,
+            friction: 0.1,
+            frictionAir: 0.01,
+          });
+        }
+        bodyData.push({ body, img });
       }
 
       M.World.add(engine.world, [...walls, ...bodyData.map(d => d.body)]);
 
-      // Mouse drag/fling
       const mouse = M.Mouse.create(canvas);
       const mc = M.MouseConstraint.create(engine, {
         mouse,
@@ -100,26 +169,21 @@ export default function GravityMode() {
 
       worldRef.current = { M, engine, runner, bodyData, listeners: [], alive: true };
 
-      // Draw loop — natural sticker edges, no clipping
       function draw() {
         if (!worldRef.current?.alive) return;
         ctx.clearRect(0, 0, W, H);
         for (const { body, img } of bodyData) {
           const { x, y } = body.position;
-          const half = SIZE / 2;
           ctx.save();
           ctx.translate(x, y);
           ctx.rotate(body.angle);
-          if (img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, -half, -half, SIZE, SIZE);
-          }
+          ctx.drawImage(img, -SIZE / 2, -SIZE / 2, SIZE, SIZE);
           ctx.restore();
         }
         requestAnimationFrame(draw);
       }
       draw();
 
-      // Scroll: up = push bodies up, down = bodies fall
       const onWheel = (e: WheelEvent) => {
         if (!worldRef.current) return;
         const force = e.deltaY * 0.00004;
@@ -129,12 +193,12 @@ export default function GravityMode() {
       };
       window.addEventListener('wheel', onWheel, { passive: true });
       worldRef.current.listeners = [[window, 'wheel', onWheel]];
-    });
+    }
 
+    init();
     return () => { alive = false; };
   }, [active]);
 
-  // Toggle gravity vs space
   useEffect(() => {
     if (!worldRef.current) return;
     const { M, engine, bodyData } = worldRef.current;
