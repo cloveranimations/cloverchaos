@@ -58,13 +58,20 @@ export default function EpisodesPage() {
         <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
           <AnimatedElement>
             <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-              <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '12px', letterSpacing: '2px', color: '#4ade80', marginBottom: '16px', textTransform: 'uppercase' }}>Phase One</span>
               <h1 style={{ fontSize: 'clamp(36px, 5vw, 72px)', fontFamily: 'var(--font-display)', fontWeight: '700', color: '#4ade80' }}>Episodes</h1>
             </div>
           </AnimatedElement>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-            {episodes.map((ep, idx) => (
+          {/* PHASE ONE */}
+          <AnimatedElement delay={0.1}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+              <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, rgba(74,222,128,0.4), transparent)' }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '3px', color: '#4ade80', textTransform: 'uppercase', whiteSpace: 'nowrap', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)', padding: '6px 16px', borderRadius: '20px' }}>Phase One</span>
+              <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to left, rgba(74,222,128,0.4), transparent)' }} />
+            </div>
+          </AnimatedElement>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '64px' }}>
+            {episodes.slice(0, 4).map((ep, idx) => (
               <AnimatedElement key={ep.num} delay={idx * 0.1}>
                 <a href={ep.url || undefined} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
                 <div
@@ -87,6 +94,49 @@ export default function EpisodesPage() {
                       <span style={{ color: '#64748b' }}>{ep.duration}</span>
                       {ep.url ? (
                         <a href={ep.url} target="_blank" rel="noopener noreferrer" style={{ color: '#4ade80', textDecoration: 'none' }}>&#9654; Watch</a>
+                      ) : (
+                        <span style={{ color: '#64748b', fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '1px' }}>COMING SOON</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                </a>
+              </AnimatedElement>
+            ))}
+          </div>
+
+          {/* PHASE TWO */}
+          <AnimatedElement delay={0.1}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+              <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, rgba(167,139,250,0.4), transparent)' }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '3px', color: '#a78bfa', textTransform: 'uppercase', whiteSpace: 'nowrap', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.25)', padding: '6px 16px', borderRadius: '20px' }}>Phase Two</span>
+              <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to left, rgba(167,139,250,0.4), transparent)' }} />
+            </div>
+          </AnimatedElement>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+            {episodes.slice(4).map((ep, idx) => (
+              <AnimatedElement key={ep.num} delay={idx * 0.1}>
+                <a href={ep.url || undefined} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+                <div
+                  className="card"
+                  style={{ position: 'relative', overflow: 'hidden', cursor: ep.url ? 'pointer' : 'default', backgroundImage: ep.thumbnail ? `url(${ep.thumbnail})` : 'none', backgroundColor: ep.thumbnail ? 'transparent' : '#0f172a', backgroundSize: 'cover', backgroundPosition: 'center', height: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0', borderColor: 'rgba(167,139,250,0.2)' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,250,0.5)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,250,0.2)'; }}
+                >
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)', zIndex: 1 }} />
+                  <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '110px', fontFamily: 'var(--font-display)', fontWeight: '700', color: 'rgba(167,139,250,0.15)', lineHeight: '1', zIndex: 2, userSelect: 'none' }}>{parseInt(ep.num)}</div>
+                  <div style={{ position: 'relative', zIndex: 3, padding: '16px' }}>
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                      {ep.tags.map((tag) => (
+                        <span key={tag} style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: '600', letterSpacing: '1px', color: '#a78bfa', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', padding: '3px 7px', borderRadius: '4px', textTransform: 'uppercase' }}>{tag}</span>
+                      ))}
+                    </div>
+                    <h3 style={{ fontSize: '16px', fontFamily: 'var(--font-display)', fontWeight: '700', marginBottom: '6px', color: '#e2e8f0' }}>{ep.title}</h3>
+                    <p style={{ color: '#94a3b8', fontSize: '13px', lineHeight: '1.6', marginBottom: '10px' }}>{ep.desc}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid rgba(167,139,250,0.15)', fontSize: '11px' }}>
+                      <span style={{ color: '#64748b' }}>{ep.duration}</span>
+                      {ep.url ? (
+                        <a href={ep.url} target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa', textDecoration: 'none' }}>&#9654; Watch</a>
                       ) : (
                         <span style={{ color: '#64748b', fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '1px' }}>COMING SOON</span>
                       )}
