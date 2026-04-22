@@ -3,15 +3,17 @@
 import { useEffect, useRef, useState } from 'react';
 
 const CHARACTERS = [
-  'https://i.imgur.com/m6CXyWD.png',
-  'https://i.imgur.com/5bXuwk1.png',
-  'https://i.imgur.com/H5gr7Xe.png',
-  'https://i.imgur.com/0ELhwgN.png',
-  'https://i.imgur.com/NUGITUU.png',
-  'https://i.imgur.com/yVxWcFU.png',
+  'https://i.imgur.com/mCql0R7.png',
+  'https://i.imgur.com/Q7o7sou.png',
+  'https://i.imgur.com/9HQpjlX.png',
+  'https://i.imgur.com/OHU3bIB.png',
+  'https://i.imgur.com/OAQuula.png',
+  'https://i.imgur.com/p6ehws7.png',
+  'https://i.imgur.com/MQm0AA3.png',
+  'https://i.imgur.com/UfMmcDV.png',
 ];
 
-const COUNT = 48;
+const COUNT = CHARACTERS.length;
 const BASE_RADIUS = 24;
 
 export default function GravityMode() {
