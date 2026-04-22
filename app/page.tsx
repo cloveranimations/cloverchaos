@@ -159,6 +159,20 @@ const rivalCast = [
 ];
 
 export default function Home() {
+  const [secretCode, setSecretCode] = useState('');
+  const [codeUnlocked, setCodeUnlocked] = useState(false);
+
+  function handleCodeChange(val: string) {
+    setSecretCode(val);
+    if (val === '082420') {
+      setCodeUnlocked(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('gravityUnlocked', '1');
+        window.dispatchEvent(new Event('gravityUnlocked'));
+      }
+    }
+  }
+
   return (
     <main>
       <AnimatedBackground />
@@ -797,6 +811,38 @@ export default function Home() {
           </AnimatedElement>
           <AnimatedElement delay={0.4}>
             <p style={{ color: '#64748b', fontSize: '13px', fontFamily: 'var(--font-mono)', letterSpacing: '0.5px', margin: '0' }}>Only for 4.99$ CAD — Animated Benefits Included!</p>
+          </AnimatedElement>
+
+          <AnimatedElement delay={0.5}>
+            <div style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="text"
+                maxLength={6}
+                value={secretCode}
+                onChange={(e) => handleCodeChange(e.target.value)}
+                placeholder="······"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: '1px solid rgba(226,232,240,0.08)',
+                  borderRadius: '0',
+                  color: codeUnlocked ? '#4ade80' : 'rgba(226,232,240,0.15)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '13px',
+                  letterSpacing: '6px',
+                  textAlign: 'center',
+                  width: '80px',
+                  padding: '4px 0',
+                  outline: 'none',
+                  caretColor: 'rgba(226,232,240,0.2)',
+                  transition: 'color 0.4s ease, border-color 0.4s ease',
+                  borderBottomColor: codeUnlocked ? 'rgba(74,222,128,0.3)' : 'rgba(226,232,240,0.08)',
+                }}
+              />
+              {codeUnlocked && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: '#4ade80', letterSpacing: '2px', opacity: 0.7 }}>unlocked</span>
+              )}
+            </div>
           </AnimatedElement>
         </div>
       </section>

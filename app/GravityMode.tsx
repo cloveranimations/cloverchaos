@@ -79,10 +79,20 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 export default function GravityMode() {
+  const [unlocked, setUnlocked] = useState(false);
   const [active, setActive] = useState(false);
   const [isGravity, setIsGravity] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('gravityUnlocked') === '1') {
+      setUnlocked(true);
+    }
+    const handler = () => setUnlocked(true);
+    window.addEventListener('gravityUnlocked', handler);
+    return () => window.removeEventListener('gravityUnlocked', handler);
+  }, []);
 
   useEffect(() => {
     if (!active) {
@@ -244,7 +254,7 @@ export default function GravityMode() {
           display: active ? 'block' : 'none',
         }}
       />
-      <div style={{ position: 'fixed', bottom: '28px', right: '24px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+      <div style={{ position: 'fixed', bottom: '28px', right: '24px', zIndex: 9999, display: unlocked ? 'flex' : 'none', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
         {active && (
           <button
             onClick={() => setIsGravity(g => !g)}
