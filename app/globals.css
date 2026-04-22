@@ -334,8 +334,9 @@ button {
 
 /* Shine overlay */
 @keyframes cardShine {
-  0% { transform: translateX(-100%) skewX(-15deg); opacity: 1; }
-  100% { transform: translateX(250%) skewX(-15deg); opacity: 1; }
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  40% { transform: translateX(250%) skewX(-15deg); }
+  100% { transform: translateX(250%) skewX(-15deg); }
 }
 
 .card-shine {
@@ -357,7 +358,7 @@ button {
 }
 
 .card:hover .card-shine {
-  animation: cardShine 0.65s ease forwards;
+  animation: cardShine 4s ease infinite;
 }
 
 /* Grid */
