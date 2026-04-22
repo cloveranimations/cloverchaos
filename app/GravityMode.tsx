@@ -86,9 +86,6 @@ export default function GravityMode() {
   const worldRef = useRef<any>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('gravityUnlocked') === '1') {
-      setUnlocked(true);
-    }
     const handler = () => setUnlocked(true);
     window.addEventListener('gravityUnlocked', handler);
     return () => window.removeEventListener('gravityUnlocked', handler);

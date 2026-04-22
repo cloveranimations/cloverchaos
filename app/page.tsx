@@ -166,10 +166,7 @@ export default function Home() {
     setSecretCode(val);
     if (val === '082420') {
       setCodeUnlocked(true);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('gravityUnlocked', '1');
-        window.dispatchEvent(new Event('gravityUnlocked'));
-      }
+      window.dispatchEvent(new Event('gravityUnlocked'));
     }
   }
 
