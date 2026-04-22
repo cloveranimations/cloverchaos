@@ -106,8 +106,8 @@ const episodes = [
     thumbnail: 'https://img.youtube.com/vi/R8kc1_Nusrs/maxresdefault.jpg',
   },
   { num: '06', title: 'Death over Deal', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
-  { num: '07', title: 'Clover Chaos pt. 1', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
-  { num: '08', title: 'Clover Chaos pt. 2', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
+  { num: '07', title: 'Clover Chaos pt. 1', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: 'https://i.imgur.com/DUIbfvz.jpg' },
+  { num: '08', title: 'Clover Chaos pt. 2', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: 'https://i.imgur.com/QgW447Z.jpg' },
 ];
 
 const mainCast = [
