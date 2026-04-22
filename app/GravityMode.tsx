@@ -11,20 +11,28 @@ const CHARACTERS = [
   'https://i.imgur.com/yVxWcFU.png',
 ];
 
+const COUNT = 48;
+const BASE_RADIUS = 24;
+
 export default function GravityMode() {
   const [active, setActive] = useState(false);
   const [isGravity, setIsGravity] = useState(true);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<any>(null);
 
   useEffect(() => {
     if (!active) {
       if (worldRef.current) {
-        const { M, runner, render, engine } = worldRef.current;
+        worldRef.current.alive = false;
+        const { M, runner, engine, listeners } = worldRef.current;
         M.Runner.stop(runner);
-        M.Render.stop(render);
-        render.canvas.remove();
         M.World.clear(engine.world, false);
         M.Engine.clear(engine);
+        listeners.forEach(([el, type, fn]: any) => el.removeEventListener(type, fn));
+        if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
         worldRef.current = null;
       }
       return;
@@ -33,93 +41,129 @@ export default function GravityMode() {
     let alive = true;
 
     import('matter-js').then((M) => {
-      if (!alive) return;
+      if (!alive || !canvasRef.current) return;
 
+      const canvas = canvasRef.current;
       const W = window.innerWidth;
       const H = window.innerHeight;
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d')!;
 
       const engine = M.Engine.create();
       engine.gravity.y = 1;
 
-      const render = M.Render.create({
-        element: document.body,
-        engine,
-        options: { width: W, height: H, background: 'transparent', wireframes: false },
-      });
-
-      Object.assign(render.canvas.style, {
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        zIndex: '8000',
-        pointerEvents: 'auto',
-      });
-
       const pad = 60;
       const walls = [
-        M.Bodies.rectangle(W / 2, H + pad, W * 2, pad * 2, { isStatic: true, render: { fillStyle: 'transparent', strokeStyle: 'transparent', lineWidth: 0 } }),
-        M.Bodies.rectangle(W / 2, -pad, W * 2, pad * 2, { isStatic: true, render: { fillStyle: 'transparent', strokeStyle: 'transparent', lineWidth: 0 } }),
-        M.Bodies.rectangle(-pad, H / 2, pad * 2, H * 2, { isStatic: true, render: { fillStyle: 'transparent', strokeStyle: 'transparent', lineWidth: 0 } }),
-        M.Bodies.rectangle(W + pad, H / 2, pad * 2, H * 2, { isStatic: true, render: { fillStyle: 'transparent', strokeStyle: 'transparent', lineWidth: 0 } }),
+        M.Bodies.rectangle(W / 2, H + pad, W * 2, pad * 2, { isStatic: true }),
+        M.Bodies.rectangle(W / 2, -pad,    W * 2, pad * 2, { isStatic: true }),
+        M.Bodies.rectangle(-pad, H / 2,    pad * 2, H * 2, { isStatic: true }),
+        M.Bodies.rectangle(W + pad, H / 2, pad * 2, H * 2, { isStatic: true }),
       ];
 
-      const bodies: any[] = [];
-      for (let i = 0; i < 12; i++) {
-        const src = CHARACTERS[i % CHARACTERS.length];
-        const r = 48 + Math.random() * 16;
+      // Preload images
+      const imgs = CHARACTERS.map(src => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = src;
+        return img;
+      });
+
+      // Spawn bodies scattered within viewport
+      const bodyData: Array<{ body: any; img: HTMLImageElement }> = [];
+      for (let i = 0; i < COUNT; i++) {
+        const r = BASE_RADIUS - 4 + Math.random() * 10;
         const body = M.Bodies.circle(
-          100 + Math.random() * (W - 200),
-          -r - Math.random() * 600,
+          r + Math.random() * (W - r * 2),
+          r + Math.random() * (H - r * 2),
           r,
-          {
-            restitution: 0.65,
-            friction: 0.05,
-            frictionAir: 0.01,
-            render: {
-              sprite: { texture: src, xScale: (r * 2) / 220, yScale: (r * 2) / 220 },
-            },
-          }
+          { restitution: 0.65, friction: 0.04, frictionAir: 0.01 }
         );
-        bodies.push(body);
+        bodyData.push({ body, img: imgs[i % CHARACTERS.length] });
       }
 
-      M.World.add(engine.world, [...walls, ...bodies]);
+      M.World.add(engine.world, [...walls, ...bodyData.map(d => d.body)]);
 
-      const mouse = M.Mouse.create(render.canvas);
+      // Mouse drag/fling
+      const mouse = M.Mouse.create(canvas);
       const mc = M.MouseConstraint.create(engine, {
         mouse,
         constraint: { stiffness: 0.2, render: { visible: false } },
       });
       M.World.add(engine.world, mc);
-      render.mouse = mouse;
 
-      M.Render.run(render);
       const runner = M.Runner.create();
       M.Runner.run(runner, engine);
 
-      worldRef.current = { M, engine, render, runner, bodies };
+      worldRef.current = { M, engine, runner, bodyData, listeners: [], alive: true };
+
+      // Custom draw loop with circular clipping
+      function draw() {
+        if (!worldRef.current?.alive) return;
+        ctx.clearRect(0, 0, W, H);
+        for (const { body, img } of bodyData) {
+          const { x, y } = body.position;
+          const r = (body as any).circleRadius as number;
+
+          // Clip to circle
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.translate(x, y);
+          ctx.rotate(body.angle);
+          if (img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, -r, -r, r * 2, r * 2);
+          } else {
+            ctx.fillStyle = '#4ade80';
+            ctx.fillRect(-r, -r, r * 2, r * 2);
+          }
+          ctx.restore();
+
+          // Subtle white ring
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+
+      // Scroll: up = push bodies up, down = bodies fall
+      const onWheel = (e: WheelEvent) => {
+        if (!worldRef.current) return;
+        const force = e.deltaY * 0.00004;
+        worldRef.current.bodyData.forEach(({ body }: any) => {
+          M.Body.applyForce(body, body.position, { x: 0, y: force });
+        });
+      };
+      window.addEventListener('wheel', onWheel, { passive: true });
+      worldRef.current.listeners = [[window, 'wheel', onWheel]];
     });
 
     return () => { alive = false; };
   }, [active]);
 
+  // Toggle gravity vs space
   useEffect(() => {
     if (!worldRef.current) return;
-    const { M, engine, bodies } = worldRef.current;
+    const { M, engine, bodyData } = worldRef.current;
     if (!isGravity) {
       engine.gravity.y = 0;
-      bodies.forEach((b: any) => {
-        M.Body.set(b, { frictionAir: 0 });
-        M.Body.setVelocity(b, {
-          x: (Math.random() - 0.5) * 6,
-          y: (Math.random() - 0.5) * 6,
+      bodyData.forEach(({ body }: any) => {
+        M.Body.set(body, { frictionAir: 0 });
+        M.Body.setVelocity(body, {
+          x: (Math.random() - 0.5) * 5,
+          y: (Math.random() - 0.5) * 5,
         });
       });
     } else {
       engine.gravity.y = 1;
-      bodies.forEach((b: any) => {
-        M.Body.set(b, { frictionAir: 0.01 });
-      });
+      bodyData.forEach(({ body }: any) => M.Body.set(body, { frictionAir: 0.01 }));
     }
   }, [isGravity]);
 
@@ -138,35 +182,46 @@ export default function GravityMode() {
   };
 
   return (
-    <div style={{ position: 'fixed', bottom: '28px', right: '24px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-      {active && (
+    <>
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          zIndex: 8000,
+          pointerEvents: active ? 'auto' : 'none',
+          display: active ? 'block' : 'none',
+        }}
+      />
+      <div style={{ position: 'fixed', bottom: '28px', right: '24px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+        {active && (
+          <button
+            onClick={() => setIsGravity(g => !g)}
+            style={{
+              ...base,
+              background: 'rgba(167,139,250,0.15)',
+              color: '#a78bfa',
+              border: '1px solid rgba(167,139,250,0.35)',
+              boxShadow: '0 4px 16px rgba(167,139,250,0.2)',
+            }}
+          >
+            {isGravity ? '🌌 Switch to Space' : '🌍 Switch to Gravity'}
+          </button>
+        )}
         <button
-          onClick={() => setIsGravity(g => !g)}
+          onClick={() => { setActive(a => !a); setIsGravity(true); }}
           style={{
             ...base,
-            background: 'rgba(167,139,250,0.15)',
-            color: '#a78bfa',
-            border: '1px solid rgba(167,139,250,0.35)',
-            boxShadow: '0 4px 16px rgba(167,139,250,0.2)',
+            background: active ? 'rgba(248,113,113,0.15)' : 'linear-gradient(135deg,#4ade80,#22c55e)',
+            color: active ? '#f87171' : '#000',
+            border: active ? '1px solid rgba(248,113,113,0.35)' : 'none',
+            boxShadow: active ? '0 4px 16px rgba(248,113,113,0.2)' : '0 4px 20px rgba(74,222,128,0.35)',
           }}
         >
-          {isGravity ? '🌌 Switch to Space' : '🌍 Switch to Gravity'}
+          {active ? '✕ Exit Physics' : '⚡ Gravity Mode'}
         </button>
-      )}
-      <button
-        onClick={() => { setActive(a => !a); setIsGravity(true); }}
-        style={{
-          ...base,
-          background: active
-            ? 'rgba(248,113,113,0.15)'
-            : 'linear-gradient(135deg,#4ade80,#22c55e)',
-          color: active ? '#f87171' : '#000',
-          border: active ? '1px solid rgba(248,113,113,0.35)' : 'none',
-          boxShadow: active ? '0 4px 16px rgba(248,113,113,0.2)' : '0 4px 20px rgba(74,222,128,0.35)',
-        }}
-      >
-        {active ? '✕ Exit Physics' : '⚡ Gravity Mode'}
-      </button>
-    </div>
+      </div>
+    </>
   );
 }
