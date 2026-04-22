@@ -480,7 +480,6 @@ export default function Home() {
                       ))}
                     </div>
                     <h3 style={{ fontSize: '14px', fontFamily: 'var(--font-display)', fontWeight: '700', marginBottom: '6px', color: '#e2e8f0', lineHeight: '1.3' }}>{ep.title}</h3>
-                    <p style={{ color: '#94a3b8', fontSize: '13px', lineHeight: '1.6', marginBottom: '10px' }}>{ep.desc}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid rgba(167,139,250,0.15)', fontSize: '11px', color: '#64748b' }}>
                       <span>{ep.duration}</span>
                       {ep.url ? (
