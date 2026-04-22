@@ -34,8 +34,8 @@ const episodes = [
   { num: '04', title: 'A Fading Shamrock', desc: "The team successfully fends off the Father's immediate threat, but at a great cost to their anonymity. The Interdimensional Being delivers a final warning before vanishing, setting the stage for Phase 2.", duration: '39:54', tags: ['DRAMA', 'REVEAL'], url: 'https://youtu.be/K3Da51RfROM?list=PL_buqz0LdeD57LW39dn6W8SW-IpZi-4Hc', thumbnail: 'https://img.youtube.com/vi/K3Da51RfROM/maxresdefault.jpg' },
   { num: '05', title: 'Taradiddle', desc: 'Pat returns to Montreal after 10 months and stumbles upon the old building, getting chased by Mark\'s drones. Saved by former agent McCallister and Velma, the trio hunts down Mark\'s mythical headquarters — only for Pat and Valentina to be captured by Mark himself.', duration: '13:06', tags: ['PHASE 2', 'ADVENTURE'], url: 'https://youtu.be/R8kc1_Nusrs', thumbnail: 'https://img.youtube.com/vi/R8kc1_Nusrs/maxresdefault.jpg' },
   { num: '06', title: 'Death over Deal', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
-  { num: '07', title: 'Catalyst', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
-  { num: '08', title: 'Clover Chaos', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
+  { num: '07', title: 'Clover Chaos pt. 1', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
+  { num: '08', title: 'Clover Chaos pt. 2', desc: '███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████.', duration: '--:--', tags: ['TBA'], url: '', thumbnail: '' },
 ];
 
 export default function EpisodesPage() {
