@@ -197,6 +197,7 @@ export default function GravityMode() {
         worldRef.current.bodyData.forEach(({ body }: any) => {
           M.Body.applyForce(body, body.position, { x: 0, y: force });
         });
+        window.scrollBy(0, e.deltaY);
       };
       window.addEventListener('wheel', onWheel, { passive: true });
       worldRef.current.listeners = [[window, 'wheel', onWheel]];
