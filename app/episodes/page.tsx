@@ -80,6 +80,7 @@ export default function EpisodesPage() {
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74, 222, 128, 0.5)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(226, 232, 240, 0.1)'; }}
                 >
+                  <div className="card-shine" />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)', zIndex: 1 }} />
                   <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '110px', fontFamily: 'var(--font-display)', fontWeight: '700', color: 'rgba(255,255,255,0.25)', lineHeight: '1', zIndex: 2, userSelect: 'none' }}>{parseInt(ep.num)}</div>
                   <div style={{ position: 'relative', zIndex: 3, padding: '16px' }}>
@@ -123,6 +124,7 @@ export default function EpisodesPage() {
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,250,0.5)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,250,0.2)'; }}
                 >
+                  <div className="card-shine" />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)', zIndex: 1 }} />
                   <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontSize: '110px', fontFamily: 'var(--font-display)', fontWeight: '700', color: 'rgba(167,139,250,0.15)', lineHeight: '1', zIndex: 2, userSelect: 'none' }}>{parseInt(ep.num)}</div>
                   <div style={{ position: 'relative', zIndex: 3, padding: '16px' }}>
