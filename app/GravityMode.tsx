@@ -14,7 +14,7 @@ const CHARACTERS = [
 ];
 
 const COUNT = CHARACTERS.length;
-const BASE_RADIUS = 24;
+const SIZE = 100;
 
 export default function GravityMode() {
   const [active, setActive] = useState(false);
@@ -74,14 +74,15 @@ export default function GravityMode() {
       // Spawn bodies scattered within viewport
       const bodyData: Array<{ body: any; img: HTMLImageElement }> = [];
       for (let i = 0; i < COUNT; i++) {
-        const r = BASE_RADIUS - 4 + Math.random() * 10;
-        const body = M.Bodies.circle(
-          r + Math.random() * (W - r * 2),
-          r + Math.random() * (H - r * 2),
-          r,
-          { restitution: 0.65, friction: 0.04, frictionAir: 0.01 }
+        const half = SIZE / 2;
+        const body = M.Bodies.rectangle(
+          half + Math.random() * (W - SIZE),
+          half + Math.random() * (H - SIZE),
+          SIZE,
+          SIZE,
+          { restitution: 0.55, friction: 0.1, frictionAir: 0.01 }
         );
-        bodyData.push({ body, img: imgs[i % CHARACTERS.length] });
+        bodyData.push({ body, img: imgs[i] });
       }
 
       M.World.add(engine.world, [...walls, ...bodyData.map(d => d.body)]);
@@ -99,36 +100,19 @@ export default function GravityMode() {
 
       worldRef.current = { M, engine, runner, bodyData, listeners: [], alive: true };
 
-      // Custom draw loop with circular clipping
+      // Draw loop — natural sticker edges, no clipping
       function draw() {
         if (!worldRef.current?.alive) return;
         ctx.clearRect(0, 0, W, H);
         for (const { body, img } of bodyData) {
           const { x, y } = body.position;
-          const r = (body as any).circleRadius as number;
-
-          // Clip to circle
+          const half = SIZE / 2;
           ctx.save();
-          ctx.beginPath();
-          ctx.arc(x, y, r, 0, Math.PI * 2);
-          ctx.clip();
           ctx.translate(x, y);
           ctx.rotate(body.angle);
           if (img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, -r, -r, r * 2, r * 2);
-          } else {
-            ctx.fillStyle = '#4ade80';
-            ctx.fillRect(-r, -r, r * 2, r * 2);
+            ctx.drawImage(img, -half, -half, SIZE, SIZE);
           }
-          ctx.restore();
-
-          // Subtle white ring
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(x, y, r, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
           ctx.restore();
         }
         requestAnimationFrame(draw);
