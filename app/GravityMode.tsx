@@ -164,7 +164,7 @@ export default function GravityMode() {
 
       M.World.add(engine.world, [...walls, ...bodyData.map(d => d.body)]);
 
-      const mouse = M.Mouse.create(document.documentElement);
+      const mouse = M.Mouse.create(canvas);
       const mc = M.MouseConstraint.create(engine, {
         mouse,
         constraint: { stiffness: 0.2, render: { visible: false } },
@@ -197,6 +197,7 @@ export default function GravityMode() {
         worldRef.current.bodyData.forEach(({ body }: any) => {
           M.Body.applyForce(body, body.position, { x: 0, y: force });
         });
+        window.scrollBy(0, e.deltaY);
       };
       window.addEventListener('wheel', onWheel, { passive: true });
       worldRef.current.listeners = [[window, 'wheel', onWheel]];
@@ -247,7 +248,7 @@ export default function GravityMode() {
           top: 0,
           left: 0,
           zIndex: 8000,
-          pointerEvents: 'none',
+          pointerEvents: active ? 'auto' : 'none',
           display: active ? 'block' : 'none',
         }}
       />
