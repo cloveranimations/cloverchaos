@@ -358,7 +358,7 @@ button {
 }
 
 .card:hover .card-shine {
-  animation: cardShine 4s ease infinite;
+  animation: cardShine 2s ease infinite;
 }
 
 /* Grid */
