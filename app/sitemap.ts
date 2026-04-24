@@ -22,6 +22,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: 'https://cloverchaos.com/characters', priority: 0.8, changeFrequency: 'monthly' as const },
     { url: 'https://cloverchaos.com/articles', priority: 0.9, changeFrequency: 'weekly' as const },
     { url: 'https://cloverchaos.com/subscribe', priority: 0.6, changeFrequency: 'monthly' as const },
+    { url: 'https://cloverchaos.com/discussion', priority: 0.6, changeFrequency: 'weekly' as const },
+    { url: 'https://cloverchaos.com/the-game', priority: 0.7, changeFrequency: 'monthly' as const },
+    { url: 'https://cloverchaos.com/privacy', priority: 0.2, changeFrequency: 'yearly' as const },
+    { url: 'https://cloverchaos.com/terms', priority: 0.2, changeFrequency: 'yearly' as const },
   ].map((p) => ({ ...p, lastModified: new Date() }));
 
   const ids = await getArticleIds();
