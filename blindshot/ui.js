@@ -143,8 +143,8 @@ function startWorld(seed, data) {
     maxTier = tierOfRow(data.deepest);
     w.goldenSighted = !!data.sighted;
   } else {
-    player.col = START_COL; player.row = START_ROW;
-    deepest = START_ROW; broken = 0; maxTier = 0;
+    player.col = w.spawnCol; player.row = w.spawnRow;
+    deepest = w.spawnRow; broken = 0; maxTier = 0;
   }
   player.x = (player.col + 0.5) * CELL;
   player.y = (player.row + 0.5) * CELL;
@@ -196,6 +196,27 @@ function newRun() {
   syncTree();
   syncHud(true);
   refreshAccent();
+}
+
+/* ── Layer system (distance-based visibility) ───────────────────────────── */
+
+/**
+ * Calculate visibility based on distance from spawn.
+ * Layer 0 (0-15): fully visible
+ * Layer 1 (15-30): dimmed
+ * Layer 2 (30-45): darker
+ * Layer 3+ (45+): very dark / black
+ */
+function getLayerVisibility(col, row) {
+  if (!world) return 1;
+  const spawnCol = world.spawnCol || 50;
+  const spawnRow = world.spawnRow || 6;
+  const dist = Math.hypot(col - spawnCol, row - spawnRow);
+
+  if (dist < 15) return 1;      // Layer 0: fully visible
+  if (dist < 30) return 0.6;    // Layer 1: dim
+  if (dist < 45) return 0.35;   // Layer 2: darker
+  return 0.08;                  // Layer 3+: almost black but slightly visible
 }
 
 /* ── Banner ──────────────────────────────────────────────────────────────── */
@@ -833,11 +854,14 @@ function draw(now) {
       if (hp <= 0) continue; // carved out — background shows through
       const kind = world.kind[i];
 
+      const layerVis = getLayerVisibility(col, row);
+
       if (kind === KIND_GOLDEN) {
         c.save();
         c.shadowColor = PALETTE.golden;
         c.shadowBlur = 30 + 16 * pulse;
         c.fillStyle = PALETTE.golden;
+        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
         c.fillStyle = '#fff9d9';
         c.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
@@ -850,11 +874,13 @@ function draw(now) {
         c.shadowColor = '#ffffff';
         c.shadowBlur = 12 + 8 * pulse;
         c.fillStyle = '#ffffff';
+        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
         c.restore();
         const td = 1 - hp / Math.max(1, world.maxHp[i]);
         if (td > 0.02) {
           c.fillStyle = `rgba(0,0,0,${td * 0.5})`;
+          c.globalAlpha = layerVis;
           c.fillRect(x, y, CELL, CELL);
         }
         continue;
@@ -862,32 +888,42 @@ function draw(now) {
 
       if (kind === KIND_BEDROCK) {
         c.fillStyle = '#12181a';
+        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
         c.fillStyle = '#1c2427';
         c.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+        c.globalAlpha = 1;
         continue;
       }
 
       c.fillStyle = COLOR_TABLE[world.hue[i]][world.shade[i] >> 5];
+      c.globalAlpha = layerVis;
       c.fillRect(x, y, CELL, CELL);
+      c.globalAlpha = 1;
 
       const d = 1 - hp / Math.max(1, world.maxHp[i]);
       if (d > 0.02) {
         c.fillStyle = `rgba(0,0,0,${d * 0.62})`;
+        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
+        c.globalAlpha = 1;
         if (d > 0.45) {
           c.strokeStyle = 'rgba(0,0,0,.55)';
           c.lineWidth = 1.4;
+          c.globalAlpha = layerVis;
           c.beginPath();
           c.moveTo(x + 3, y + CELL - 4);
           c.lineTo(x + CELL * 0.5, y + CELL * 0.45);
           c.lineTo(x + CELL - 3, y + 4);
           c.stroke();
+          c.globalAlpha = 1;
         }
       }
       if (world.poisonT[i] > 0) {
         c.fillStyle = `rgba(61,220,97,${0.18 + 0.16 * pulse})`;
+        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
+        c.globalAlpha = 1;
       }
     }
   }

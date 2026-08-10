@@ -331,22 +331,44 @@ function genWorld(seed) {
     carve(w, 4 + Math.floor(rng() * (GRID_W - 8)), 12 + Math.floor(rng() * (GRID_H - 20)), 1.5 + rng() * 2.5);
   }
 
-  // The prize. Always deep, never in a void, never on the border.
+  // Random spawn location (corner-ish, early tiers only)
+  const spawnCol = rng() < 0.5 ? 8 + Math.floor(rng() * 12) : GRID_W - 20 + Math.floor(rng() * 12);
+  const spawnRow = 3 + Math.floor(rng() * 8);
+  w.spawnCol = spawnCol;
+  w.spawnRow = spawnRow;
+
+  // The prize: 70-90 blocks away from spawn, never in a void, never on the border.
   let gi = -1;
-  for (let attempt = 0; attempt < 400 && gi < 0; attempt++) {
+  for (let attempt = 0; attempt < 1000 && gi < 0; attempt++) {
     const gc = 6 + Math.floor(rng() * (GRID_W - 12));
-    const gr = GOLDEN_ROW_MIN + Math.floor(rng() * (GOLDEN_ROW_MAX - GOLDEN_ROW_MIN + 1));
-    const i = idx(gc, gr);
-    if (w.hp[i] > 0 && w.kind[i] !== KIND_BEDROCK) gi = i;
+    const gr = 6 + Math.floor(rng() * (GRID_H - 12));
+    const dist = Math.hypot(gc - spawnCol, gr - spawnRow);
+    if (dist >= 70 && dist <= 90) {
+      const i = idx(gc, gr);
+      if (w.hp[i] > 0 && w.kind[i] !== KIND_BEDROCK) gi = i;
+    }
   }
-  if (gi < 0) gi = idx(GRID_W >> 1, GOLDEN_ROW_MAX);
+  // Fallback: place at farthest valid location if no spot in range found
+  if (gi < 0) {
+    let maxDist = 0, bestI = idx(50, 50);
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const gc = 6 + Math.floor(rng() * (GRID_W - 12));
+      const gr = 6 + Math.floor(rng() * (GRID_H - 12));
+      const i = idx(gc, gr);
+      if (w.hp[i] > 0 && w.kind[i] !== KIND_BEDROCK) {
+        const dist = Math.hypot(gc - spawnCol, gr - spawnRow);
+        if (dist > maxDist) { maxDist = dist; bestI = i; }
+      }
+    }
+    gi = bestI;
+  }
   w.kind[gi] = KIND_GOLDEN;
   w.hp[gi] = GOLDEN_HP;
   w.maxHp[gi] = GOLDEN_HP;
   w.goldenIdx = gi;
 
-  carve(w, START_COL, START_ROW, START_CHAMBER);
-  reveal(w, START_COL, START_ROW, START_CHAMBER + 2.5);
+  carve(w, spawnCol, spawnRow, START_CHAMBER);
+  reveal(w, spawnCol, spawnRow, START_CHAMBER + 2.5);
   return w;
 }
 
