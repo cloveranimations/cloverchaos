@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>BlindShot</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2304160c'/><rect x='5' y='5' width='6' height='6' fill='%23ffd23d'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   /* The accent is the whole point of the chrome: hovering an upgrade or
      equipping a ball retints every border, glow and wash on the page. Custom
@@ -19,8 +22,8 @@
     --accent: #4ade80;
     --ink: #dff5e6;
     --dim: #7b8f83;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --fade: 480ms cubic-bezier(.4, 0, .2, 1);
+    --mono: 'Press Start 2P', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --fade: 200ms step-end;
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -41,23 +44,22 @@
   /* Accent wash bleeding up from the floor of the screen. */
   #wash {
     position: absolute; inset: 0; pointer-events: none; z-index: 1;
-    background-color: var(--accent); opacity: .1;
-    -webkit-mask-image: radial-gradient(130% 95% at 50% 108%, #000 0%, transparent 72%);
-    mask-image: radial-gradient(130% 95% at 50% 108%, #000 0%, transparent 72%);
-    transition: background-color var(--fade);
+    background: linear-gradient(180deg, rgba(74,222,128,0) 0%, rgba(74,222,128,0) 50%, rgba(74,222,128,.15) 100%);
+    transition: background var(--fade);
   }
   /* Inner outline on the whole viewport, also accent-tinted. */
   #frame {
     position: absolute; inset: 0; pointer-events: none; z-index: 2;
-    border: 2px solid var(--accent); opacity: .3;
+    border: 4px solid var(--accent); opacity: .35;
     transition: border-color var(--fade);
+    box-shadow: inset 0 0 0 1px var(--accent);
   }
 
   .bar {
     position: absolute; left: 0; right: 0; z-index: 5;
     padding: calc(8px + env(safe-area-inset-top)) 12px 10px;
     display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
-    background: linear-gradient(rgba(0,0,0,.82), rgba(0,0,0,0));
+    background: linear-gradient(180deg, rgba(0,0,0,.9) 0%, rgba(0,0,0,.6) 70%, rgba(0,0,0,0) 100%);
     pointer-events: none;
   }
   .bar > * { pointer-events: auto; }
@@ -75,21 +77,22 @@
 
   button {
     font-family: var(--mono); font-size: 10px; letter-spacing: 1.4px;
-    background: rgba(0,0,0,.62); color: var(--accent);
-    border: 2px solid var(--accent); padding: 6px 9px; cursor: pointer;
+    background: rgba(0,0,0,.7); color: var(--accent);
+    border: 3px solid var(--accent); padding: 6px 9px; cursor: pointer;
     transition: color var(--fade), border-color var(--fade), background-color var(--fade), box-shadow var(--fade);
+    box-shadow: inset 0 0 0 1px rgba(74,222,128,.3);
   }
   button:disabled { opacity: .38; cursor: default; }
-  button.solid { background: var(--accent); color: #04160c; font-weight: 700; }
+  button.solid { background: var(--accent); color: #04160c; font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.5) inset; }
   button.mute { color: var(--dim); border-color: var(--dim); }
 
   /* ── Minimap ─────────────────────────────────────────────────────────── */
   #miniWrap {
     position: absolute; right: 12px; top: calc(74px + env(safe-area-inset-top)); z-index: 4;
-    border: 2px solid var(--accent); background: rgba(0,0,0,.72);
+    border: 4px solid var(--accent); background: rgba(0,0,0,.8);
     padding: 3px; line-height: 0; pointer-events: none;
-    box-shadow: 0 0 14px -4px var(--accent);
-    transition: border-color var(--fade), box-shadow var(--fade), opacity 260ms;
+    box-shadow: inset 0 0 0 1px var(--accent);
+    transition: border-color var(--fade), opacity 260ms;
   }
   #miniWrap.off { opacity: 0; }
   #mini { display: block; width: 116px; height: 116px; image-rendering: pixelated; }
@@ -98,16 +101,17 @@
   #compass {
     position: absolute; top: calc(74px + env(safe-area-inset-top)); left: 12px; z-index: 4;
     display: none; align-items: center; gap: 6px; white-space: nowrap;
-    border: 1px solid #ffd23d; color: #ffd23d; background: rgba(0,0,0,.66);
+    border: 3px solid #ffd23d; color: #ffd23d; background: rgba(0,0,0,.8);
     padding: 4px 8px; font-size: 11px; letter-spacing: 1px; pointer-events: none;
+    box-shadow: inset 0 0 0 1px rgba(255,210,61,.3);
   }
   #compass .arrow { display: inline-block; }
 
   #banner {
     position: absolute; top: 34%; left: 0; right: 0; z-index: 6; text-align: center;
     font-size: 19px; letter-spacing: 4px; color: #fff; pointer-events: none;
-    opacity: 0; transition: opacity 320ms;
-    text-shadow: 0 0 16px var(--accent);
+    opacity: 0; transition: opacity 100ms step-end;
+    text-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent);
   }
   #banner.show { opacity: 1; }
 
@@ -115,7 +119,7 @@
   #bottom {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
-    background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.86) 42%);
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.6) 30%, rgba(0,0,0,.9) 100%);
   }
   #cdRow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
   #cdTrack { flex: 1; height: 5px; background: rgba(255,255,255,.13); overflow: hidden; }
@@ -126,12 +130,13 @@
   #chips { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
   .chip {
     display: flex; align-items: center; gap: 5px;
-    border: 2px solid currentColor; background: rgba(0,0,0,.6);
+    border: 3px solid currentColor; background: rgba(0,0,0,.7);
     padding: 5px 9px; font-size: 10px; letter-spacing: 1.2px; cursor: pointer;
-    opacity: .5; transition: opacity 200ms, box-shadow 200ms, background-color 200ms;
+    opacity: .4; transition: opacity var(--fade), background-color var(--fade);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.1);
   }
-  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-  .chip.on { opacity: 1; box-shadow: 0 0 12px -2px currentColor; }
+  .chip .dot { width: 7px; height: 7px; background: currentColor; }
+  .chip.on { opacity: 1; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 0 8px -2px currentColor; }
 
   /* ── Overlays ────────────────────────────────────────────────────────── */
   /* Opaque on purpose: at 95% the HUD underneath ghosts through the header. */
@@ -147,7 +152,8 @@
   #treeHead {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
     padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
-    border-bottom: 2px solid var(--accent); transition: border-color var(--fade);
+    border-bottom: 4px solid var(--accent); transition: border-color var(--fade);
+    background: rgba(0,0,0,.5);
   }
   #treeHead .t { font-size: 12px; letter-spacing: 3px; color: var(--accent); transition: color var(--fade); }
 
@@ -158,24 +164,25 @@
   .node {
     position: absolute; width: 46px; height: 46px; padding: 0;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(0,0,0,.8); cursor: pointer;
-    transition: box-shadow 220ms, opacity 220ms, transform 160ms, background-color 220ms;
+    background: rgba(0,0,0,.85); cursor: pointer;
+    border: 2px solid var(--accent);
+    transition: opacity 200ms, background-color var(--fade);
   }
-  .node.circle { border-radius: 50%; }
-  .node.locked { opacity: .26; }
-  .node.short  { opacity: .58; }
-  .node.owned  { background: rgba(255,255,255,.07); }
-  .node.sel    { transform: scale(1.14); }
+  .node.circle { border-radius: 0; }
+  .node.locked { opacity: .2; }
+  .node.short  { opacity: .5; }
+  .node.owned  { background: rgba(255,255,255,.12); }
+  .node.sel    { box-shadow: inset 0 0 0 2px var(--accent), 0 0 12px -3px var(--accent); }
   .node .cost {
     position: absolute; bottom: -8px; right: -8px;
     font-size: 9px; padding: 1px 4px; background: #04160c;
-    border: 1px solid currentColor; letter-spacing: 0;
+    border: 2px solid currentColor; letter-spacing: 0;
   }
   .node .tick { position: absolute; top: -7px; right: -7px; font-size: 11px; }
 
   #detail {
-    border-top: 2px solid var(--accent); padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
-    background: rgba(0,0,0,.6); transition: border-color var(--fade);
+    border-top: 4px solid var(--accent); padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
+    background: rgba(0,0,0,.75); transition: border-color var(--fade);
     display: flex; align-items: center; gap: 12px;
   }
   #detail .txt { flex: 1; min-width: 0; }
@@ -183,9 +190,9 @@
   #detail .ds { font-size: 11px; color: var(--dim); line-height: 1.5; margin-top: 3px; }
 
   .cardBox {
-    border: 2px solid var(--accent); background: rgba(0,0,0,.94); padding: 16px 26px 18px;
+    border: 4px solid var(--accent); background: rgba(0,0,0,.96); padding: 16px 26px 18px;
     text-align: center; max-width: 330px;
-    box-shadow: 0 0 30px -6px var(--accent);
+    box-shadow: inset 0 0 0 2px rgba(74,222,128,.2), 0 8px 0 -4px rgba(74,222,128,.4);
     transition: border-color var(--fade), box-shadow var(--fade);
   }
   .cardBox .kicker { font-size: 11px; letter-spacing: 3px; color: var(--accent); transition: color var(--fade); }
@@ -193,14 +200,14 @@
   .cardBox .desc { font-size: 12px; color: var(--dim); line-height: 1.55; }
   .cardBox .hint { font-size: 10px; letter-spacing: 2px; color: #56685c; margin-top: 12px; }
 
-  #win .kicker { font-size: 12px; letter-spacing: 4px; color: #ffd23d; }
-  #win .big { font-size: 30px; letter-spacing: 2px; color: #fff; margin: 8px 0 6px; text-shadow: 0 0 24px #ffd23d; }
+  #win .kicker { font-size: 12px; letter-spacing: 4px; color: #ffd23d; text-shadow: 0 0 8px #ffd23d; }
+  #win .big { font-size: 30px; letter-spacing: 2px; color: #fff; margin: 8px 0 6px; text-shadow: 0 0 12px #ffd23d, 0 0 24px #ffd23d; }
   #win .sub { font-size: 12px; color: var(--dim); margin-bottom: 20px; }
 
   #help {
     position: absolute; left: 0; right: 0; bottom: calc(78px + env(safe-area-inset-bottom));
     z-index: 4; text-align: center; font-size: 10px; letter-spacing: 1px;
-    color: #6d8175; pointer-events: none; transition: opacity 500ms; padding: 0 16px; line-height: 1.7;
+    color: #5a6f66; pointer-events: none; transition: opacity 200ms step-end; padding: 0 16px; line-height: 1.7;
   }
   #help.gone { opacity: 0; }
 </style>
