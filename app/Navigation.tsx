@@ -53,7 +53,7 @@ export default function Navigation() {
 
         {/* Desktop Menu */}
         <div className="hide-mobile" style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-          {['About', 'Episodes', 'Shop', 'Characters', 'Articles', 'Discussion', 'The Game', 'Subscribe'].map((item) => (
+          {['About', 'Episodes', 'Shop', 'Characters', 'Articles', 'Discussion', 'The Game', 'BlindShot', 'Subscribe'].map((item) => (
             <a
               key={item}
               href={item === 'Shop' ? 'https://www.etsy.com/shop/CloverChaosDesigns' : `/${item.toLowerCase().replace(/\s+/g, '-')}`}
@@ -103,7 +103,7 @@ export default function Navigation() {
           }}
           className="show-mobile"
         >
-          {['About', 'Episodes', 'Shop', 'Characters', 'Articles', 'Discussion', 'The Game', 'Subscribe'].map((item) => (
+          {['About', 'Episodes', 'Shop', 'Characters', 'Articles', 'Discussion', 'The Game', 'BlindShot', 'Subscribe'].map((item) => (
             <a
               key={item}
               href={item === 'Shop' ? 'https://www.etsy.com/shop/CloverChaosDesigns' : `/${item.toLowerCase().replace(/\s+/g, '-')}`}
