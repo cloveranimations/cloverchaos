@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#04160c">
+<meta name="description" content="BlindShot — a slingshot mining game. Fire into the dark, dig eight tiers down, and find the one golden block.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>BlindShot</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2304160c'/><rect x='5' y='5' width='6' height='6' fill='%23ffd23d'/></svg>">
+<style>
+  /* The accent is the whole point of the chrome: hovering an upgrade or
+     equipping a ball retints every border, glow and wash on the page. Custom
+     properties don't animate, so each rule transitions the property that
+     *reads* the property instead. */
+  :root {
+    --accent: #4ade80;
+    --ink: #dff5e6;
+    --dim: #7b8f83;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --fade: 480ms cubic-bezier(.4, 0, .2, 1);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #04160c; color: var(--ink);
+    font-family: var(--mono);
+    overscroll-behavior: none;
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
+  }
+
+  #app { position: fixed; inset: 0; overflow: hidden; }
+
+  #cv { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+
+  /* Accent wash bleeding up from the floor of the screen. */
+  #wash {
+    position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background-color: var(--accent); opacity: .1;
+    -webkit-mask-image: radial-gradient(130% 95% at 50% 108%, #000 0%, transparent 72%);
+    mask-image: radial-gradient(130% 95% at 50% 108%, #000 0%, transparent 72%);
+    transition: background-color var(--fade);
+  }
+  /* Inner outline on the whole viewport, also accent-tinted. */
+  #frame {
+    position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    border: 2px solid var(--accent); opacity: .3;
+    transition: border-color var(--fade);
+  }
+
+  .bar {
+    position: absolute; left: 0; right: 0; z-index: 5;
+    padding: calc(8px + env(safe-area-inset-top)) 12px 10px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    background: linear-gradient(rgba(0,0,0,.82), rgba(0,0,0,0));
+    pointer-events: none;
+  }
+  .bar > * { pointer-events: auto; }
+  #top { top: 0; }
+
+  .stat { line-height: 1.15; }
+  .stat .k { font-size: 9px; letter-spacing: 1.4px; color: var(--accent); opacity: .8; transition: color var(--fade); }
+  .stat .v { font-size: 17px; color: #fff; }
+  .stat.mid { text-align: center; }
+  .stat.mid .v { font-size: 13px; letter-spacing: 1px; }
+
+  .right { display: flex; align-items: center; gap: 6px; }
+
+  #tokens { font-size: 16px; color: #fff; white-space: nowrap; }
+
+  button {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.4px;
+    background: rgba(0,0,0,.62); color: var(--accent);
+    border: 2px solid var(--accent); padding: 6px 9px; cursor: pointer;
+    transition: color var(--fade), border-color var(--fade), background-color var(--fade), box-shadow var(--fade);
+  }
+  button:disabled { opacity: .38; cursor: default; }
+  button.solid { background: var(--accent); color: #04160c; font-weight: 700; }
+  button.mute { color: var(--dim); border-color: var(--dim); }
+
+  /* ── Minimap ─────────────────────────────────────────────────────────── */
+  #miniWrap {
+    position: absolute; right: 12px; top: calc(74px + env(safe-area-inset-top)); z-index: 4;
+    border: 2px solid var(--accent); background: rgba(0,0,0,.72);
+    padding: 3px; line-height: 0; pointer-events: none;
+    box-shadow: 0 0 14px -4px var(--accent);
+    transition: border-color var(--fade), box-shadow var(--fade), opacity 260ms;
+  }
+  #miniWrap.off { opacity: 0; }
+  #mini { display: block; width: 116px; height: 116px; image-rendering: pixelated; }
+
+  /* ── Compass + banners ───────────────────────────────────────────────── */
+  #compass {
+    position: absolute; top: calc(74px + env(safe-area-inset-top)); left: 12px; z-index: 4;
+    display: none; align-items: center; gap: 6px; white-space: nowrap;
+    border: 1px solid #ffd23d; color: #ffd23d; background: rgba(0,0,0,.66);
+    padding: 4px 8px; font-size: 11px; letter-spacing: 1px; pointer-events: none;
+  }
+  #compass .arrow { display: inline-block; }
+
+  #banner {
+    position: absolute; top: 34%; left: 0; right: 0; z-index: 6; text-align: center;
+    font-size: 19px; letter-spacing: 4px; color: #fff; pointer-events: none;
+    opacity: 0; transition: opacity 320ms;
+    text-shadow: 0 0 16px var(--accent);
+  }
+  #banner.show { opacity: 1; }
+
+  /* ── Bottom deck ─────────────────────────────────────────────────────── */
+  #bottom {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.86) 42%);
+  }
+  #cdRow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  #cdTrack { flex: 1; height: 5px; background: rgba(255,255,255,.13); overflow: hidden; }
+  #cdFill { height: 100%; width: 0%; background: var(--accent); transition: background-color var(--fade); }
+  #cdText { font-size: 10px; letter-spacing: 1.4px; color: var(--accent); min-width: 62px; text-align: right; transition: color var(--fade); }
+  #cdText.wait { color: #94a3b8; }
+
+  #chips { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .chip {
+    display: flex; align-items: center; gap: 5px;
+    border: 2px solid currentColor; background: rgba(0,0,0,.6);
+    padding: 5px 9px; font-size: 10px; letter-spacing: 1.2px; cursor: pointer;
+    opacity: .5; transition: opacity 200ms, box-shadow 200ms, background-color 200ms;
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .chip.on { opacity: 1; box-shadow: 0 0 12px -2px currentColor; }
+
+  /* ── Overlays ────────────────────────────────────────────────────────── */
+  /* Opaque on purpose: at 95% the HUD underneath ghosts through the header. */
+  .sheet {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; background: #030d07;
+  }
+  .sheet.open { display: flex; }
+  #tree { z-index: 40; }
+  #card { z-index: 50; align-items: center; justify-content: center; padding: 18px; cursor: pointer; }
+  #win  { z-index: 60; align-items: center; justify-content: center; padding: 22px; text-align: center; }
+
+  #treeHead {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    border-bottom: 2px solid var(--accent); transition: border-color var(--fade);
+  }
+  #treeHead .t { font-size: 12px; letter-spacing: 3px; color: var(--accent); transition: color var(--fade); }
+
+  #treeView { position: relative; flex: 1; overflow: hidden; touch-action: none; cursor: grab; }
+  #treePan { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+  #treeSvg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+
+  .node {
+    position: absolute; width: 46px; height: 46px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.8); cursor: pointer;
+    transition: box-shadow 220ms, opacity 220ms, transform 160ms, background-color 220ms;
+  }
+  .node.circle { border-radius: 50%; }
+  .node.locked { opacity: .26; }
+  .node.short  { opacity: .58; }
+  .node.owned  { background: rgba(255,255,255,.07); }
+  .node.sel    { transform: scale(1.14); }
+  .node .cost {
+    position: absolute; bottom: -8px; right: -8px;
+    font-size: 9px; padding: 1px 4px; background: #04160c;
+    border: 1px solid currentColor; letter-spacing: 0;
+  }
+  .node .tick { position: absolute; top: -7px; right: -7px; font-size: 11px; }
+
+  #detail {
+    border-top: 2px solid var(--accent); padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
+    background: rgba(0,0,0,.6); transition: border-color var(--fade);
+    display: flex; align-items: center; gap: 12px;
+  }
+  #detail .txt { flex: 1; min-width: 0; }
+  #detail .nm { font-size: 13px; color: #fff; letter-spacing: 1px; }
+  #detail .ds { font-size: 11px; color: var(--dim); line-height: 1.5; margin-top: 3px; }
+
+  .cardBox {
+    border: 2px solid var(--accent); background: rgba(0,0,0,.94); padding: 16px 26px 18px;
+    text-align: center; max-width: 330px;
+    box-shadow: 0 0 30px -6px var(--accent);
+    transition: border-color var(--fade), box-shadow var(--fade);
+  }
+  .cardBox .kicker { font-size: 11px; letter-spacing: 3px; color: var(--accent); transition: color var(--fade); }
+  .cardBox .name { font-size: 24px; color: #fff; margin: 7px 0 5px; }
+  .cardBox .desc { font-size: 12px; color: var(--dim); line-height: 1.55; }
+  .cardBox .hint { font-size: 10px; letter-spacing: 2px; color: #56685c; margin-top: 12px; }
+
+  #win .kicker { font-size: 12px; letter-spacing: 4px; color: #ffd23d; }
+  #win .big { font-size: 30px; letter-spacing: 2px; color: #fff; margin: 8px 0 6px; text-shadow: 0 0 24px #ffd23d; }
+  #win .sub { font-size: 12px; color: var(--dim); margin-bottom: 20px; }
+
+  #help {
+    position: absolute; left: 0; right: 0; bottom: calc(78px + env(safe-area-inset-bottom));
+    z-index: 4; text-align: center; font-size: 10px; letter-spacing: 1px;
+    color: #6d8175; pointer-events: none; transition: opacity 500ms; padding: 0 16px; line-height: 1.7;
+  }
+  #help.gone { opacity: 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="cv"></canvas>
+  <div id="wash"></div>
+  <div id="frame"></div>
+
+  <div class="bar" id="top">
+    <div class="stat">
+      <div class="k">DEPTH</div>
+      <div class="v"><span id="depth">6</span>m</div>
+    </div>
+    <div class="stat mid">
+      <div class="k">LEVEL <span id="lvl">1</span></div>
+      <div class="v" id="tier">CRUST</div>
+    </div>
+    <div class="right">
+      <span id="tokens">◆ 0</span>
+      <button id="vibBtn" title="Device vibration">VIB</button>
+      <button id="mapBtn" title="Minimap">MAP</button>
+      <button id="techBtn">TECH</button>
+    </div>
+  </div>
+
+  <div id="miniWrap"><canvas id="mini" width="100" height="100"></canvas></div>
+  <div id="compass"><span class="arrow">➤</span><span id="compassTxt">— BLOCKS</span></div>
+  <div id="banner"></div>
+
+  <div id="help">HOLD &amp; DRAG BACK TO SLING · RELEASE TO FIRE · TAP TO WALK</div>
+
+  <div id="bottom">
+    <div id="cdRow">
+      <div id="cdTrack"><div id="cdFill"></div></div>
+      <div id="cdText">READY</div>
+    </div>
+    <div id="chips"></div>
+  </div>
+
+  <!-- Tech tree -->
+  <div class="sheet" id="tree">
+    <div id="treeHead">
+      <div class="t">TECH TREE</div>
+      <div class="right">
+        <span id="treeTokens">◆ 0</span>
+        <button id="treeClose">CLOSE</button>
+      </div>
+    </div>
+    <div id="treeView"><svg id="treeSvg"></svg><div id="treePan"></div></div>
+    <div id="detail">
+      <div class="txt">
+        <div class="nm" id="dNm">Slingshot</div>
+        <div class="ds" id="dDs">Pull back, let go, listen for the crack.</div>
+      </div>
+      <button id="dBtn" class="solid">OWNED</button>
+    </div>
+  </div>
+
+  <!-- New ball reveal -->
+  <div class="sheet" id="card">
+    <div class="cardBox">
+      <div class="kicker">NEW BALL</div>
+      <div class="name" id="cardName"></div>
+      <div class="desc" id="cardDesc"></div>
+      <div class="hint">TAP TO CONTINUE</div>
+    </div>
+  </div>
+
+  <!-- Victory -->
+  <div class="sheet" id="win">
+    <div>
+      <div class="kicker">THE GOLDEN BLOCK</div>
+      <div class="big">FOUND IT</div>
+      <div class="sub" id="winSub"></div>
+      <button id="winBtn" class="solid">NEW MAP</button>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>

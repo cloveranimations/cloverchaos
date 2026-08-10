@@ -71,7 +71,7 @@ Config.KIND_BEDROCK = 3
 
 --- 1 in N solid blocks hides an upgrade token, before luck bonuses. Tuned so
 --- the first token shows up within the opening few shots.
-Config.TOKEN_RARITY = 85
+Config.TOKEN_RARITY = 18
 --- The golden block only ever spawns in this row band.
 Config.GOLDEN_ROW_MIN = 86
 Config.GOLDEN_ROW_MAX = 96
@@ -120,44 +120,45 @@ export type BallDef = {
 	revealBonus: number,
 	luckMul: number,
 	speedMul: number,
+	bounceBonus: number,
 }
 
 Config.BALLS: { [string]: BallDef } = {
 	basic = {
 		id = "basic", name = "Iron ball", branch = "orange", color = Color3.fromHex("#f2a65a"),
-		desc = "No tricks. Bounces hard and hits reliably.",
+		desc = "No tricks. Ricochets hard and hits reliably.",
 		damageMul = 1, splashBonus = 0, pierce = false, chains = false, poisons = false,
-		revealBonus = 0, luckMul = 1, speedMul = 1,
+		revealBonus = 0, luckMul = 1, speedMul = 1, bounceBonus = 2,
 	},
 	bomb = {
 		id = "bomb", name = "Bomb ball", branch = "orange", color = Color3.fromHex("#fb7a1e"),
-		desc = "Detonates on impact. Huge splash, slower flight.",
+		desc = "Detonates on every bounce. Huge splash, slower flight.",
 		damageMul = 0.85, splashBonus = 2, pierce = false, chains = false, poisons = false,
-		revealBonus = 0, luckMul = 1, speedMul = 0.85,
+		revealBonus = 0, luckMul = 1, speedMul = 0.85, bounceBonus = 0,
 	},
 	lightning = {
 		id = "lightning", name = "Storm ball", branch = "yellow", color = Color3.fromHex("#f4e04d"),
-		desc = "Arcs to nearby blocks on every hit. Fast and fragile.",
+		desc = "Arcs to nearby blocks on every hit. Fast, and it bounces forever.",
 		damageMul = 0.8, splashBonus = 0, pierce = false, chains = true, poisons = false,
-		revealBonus = 1, luckMul = 1, speedMul = 1.25,
+		revealBonus = 1, luckMul = 1, speedMul = 1.25, bounceBonus = 5,
 	},
 	poison = {
 		id = "poison", name = "Poison ball", branch = "green", color = Color3.fromHex("#3ddc61"),
 		desc = "Rots blocks over time. Weak up front, brutal if you wait.",
 		damageMul = 0.6, splashBonus = 1, pierce = false, chains = false, poisons = true,
-		revealBonus = 0, luckMul = 1, speedMul = 1,
+		revealBonus = 0, luckMul = 1, speedMul = 1, bounceBonus = 2,
 	},
 	ghost = {
 		id = "ghost", name = "Ghost ball", branch = "blue", color = Color3.fromHex("#5ad1f5"),
-		desc = "Tunnels straight through rock, bleeding speed as it goes.",
+		desc = "The only ball that tunnels instead of bouncing. Dies fast.",
 		damageMul = 0.7, splashBonus = 0, pierce = true, chains = false, poisons = false,
-		revealBonus = 1, luckMul = 1, speedMul = 1.15,
+		revealBonus = 1, luckMul = 1, speedMul = 1.15, bounceBonus = 0,
 	},
 	lure = {
 		id = "lure", name = "Lure ball", branch = "magenta", color = Color3.fromHex("#f45ce0"),
 		desc = "Lights up the dark and shakes tokens loose.",
 		damageMul = 0.75, splashBonus = 0, pierce = false, chains = false, poisons = false,
-		revealBonus = 4, luckMul = 2.5, speedMul = 0.95,
+		revealBonus = 4, luckMul = 2.5, speedMul = 0.95, bounceBonus = 3,
 	},
 }
 
@@ -183,7 +184,7 @@ export type Stats = {
 	poisonBase: number,
 	poisonDps: number,
 	poisonTime: number,
-	poisonSpreads: boolean,
+	poisonSpread: number,
 	revealRadius: number,
 	luck: number,
 	compass: number,
@@ -191,7 +192,7 @@ export type Stats = {
 
 function Config.baseStats(): Stats
 	return {
-		damage = 4,
+		damage = 9,
 		damageMul = 1,
 		splashRadius = 0,
 		splashFactor = 0,
@@ -199,17 +200,18 @@ function Config.baseStats(): Stats
 		spreadAngle = 0.16,
 		-- Generous bounce budget: a shot fired from inside an already-carved
 		-- cave still has to cross open space before it reaches fresh rock.
-		bounces = 7,
+		bounces = 16,
 		speed = 380,
-		lifetime = 7,
-		reload = 0.55,
+		lifetime = 10,
+		reload = 5,
 		chainTargets = 2,
 		chainRange = 5,
 		chainDamage = 0.5,
 		poisonBase = 0,
 		poisonDps = 2,
 		poisonTime = 3,
-		poisonSpreads = false,
+		--- Generations of onward infection. 0 = rot never leaves the block it killed.
+		poisonSpread = 0,
 		revealRadius = 2.6,
 		luck = 1,
 		compass = 0,
@@ -244,19 +246,19 @@ Config.TECH: { TechNode } = {
 
 	-- ── RED · Force ──────────────────────────────────────────────────────────
 	{
-		id = "r1", name = "Honed Tip", desc = "+2 damage on every impact.",
+		id = "r1", name = "Honed Tip", desc = "+3 damage on every impact.",
 		branch = "red", col = -1, row = 0, cost = 1, requires = { "core" }, icon = "sword", shape = "square",
-		apply = function(s) s.damage += 2 end,
+		apply = function(s) s.damage += 3 end,
 	},
 	{
-		id = "r2", name = "Heavy Shot", desc = "+4 damage. The ball hits like a hammer.",
+		id = "r2", name = "Heavy Shot", desc = "+6 damage. The ball hits like a hammer.",
 		branch = "red", col = -2, row = 0, cost = 2, requires = { "r1" }, icon = "sword", shape = "square",
-		apply = function(s) s.damage += 4 end,
+		apply = function(s) s.damage += 6 end,
 	},
 	{
-		id = "r3", name = "Crushing Blow", desc = "+7 damage.",
+		id = "r3", name = "Crushing Blow", desc = "+10 damage.",
 		branch = "red", col = -3, row = 0, cost = 4, requires = { "r2" }, icon = "sword", shape = "square",
-		apply = function(s) s.damage += 7 end,
+		apply = function(s) s.damage += 10 end,
 	},
 	{
 		id = "r4", name = "Fracture", desc = "All damage multiplied by 1.35.",
@@ -264,9 +266,9 @@ Config.TECH: { TechNode } = {
 		apply = function(s) s.damageMul *= 1.35 end,
 	},
 	{
-		id = "r5", name = "Overload", desc = "+14 damage, but shots fly 15% slower.",
+		id = "r5", name = "Overload", desc = "+18 damage, but shots fly 15% slower.",
 		branch = "red", col = -4, row = 0, cost = 7, requires = { "r3" }, icon = "sword", shape = "square",
-		apply = function(s) s.damage += 14 s.speed *= 0.85 end,
+		apply = function(s) s.damage += 18 s.speed *= 0.85 end,
 	},
 
 	-- ── ORANGE · Impact ──────────────────────────────────────────────────────
@@ -298,9 +300,9 @@ Config.TECH: { TechNode } = {
 
 	-- ── YELLOW · Storm ───────────────────────────────────────────────────────
 	{
-		id = "y1", name = "Static", desc = "Reload 20% faster.",
+		id = "y1", name = "Static", desc = "Cooldown 18% shorter.",
 		branch = "yellow", col = 0, row = -1, cost = 1, requires = { "core" }, icon = "clock", shape = "square",
-		apply = function(s) s.reload *= 0.8 end,
+		apply = function(s) s.reload *= 0.82 end,
 	},
 	{
 		id = "y2", name = "Arc", desc = "Unlocks the Storm ball.",
@@ -308,19 +310,25 @@ Config.TECH: { TechNode } = {
 		unlocksBall = "lightning", apply = function(_s) end,
 	},
 	{
-		id = "y3", name = "Conductor", desc = "Lightning hits +1 block and deals 40% more.",
+		id = "y3", name = "Conductor", desc = "Lightning hits +1 block and deals 20% more.",
 		branch = "yellow", col = 0, row = -3, cost = 4, requires = { "y2" }, icon = "bolt", shape = "square",
 		apply = function(s) s.chainTargets += 1 s.chainDamage += 0.2 end,
 	},
 	{
-		id = "y4", name = "Quickdraw", desc = "Reload 30% faster.",
+		id = "y4", name = "Quickdraw", desc = "Cooldown 28% shorter.",
 		branch = "yellow", col = -1, row = -3, cost = 5, requires = { "y3" }, icon = "clock", shape = "square",
-		apply = function(s) s.reload *= 0.7 end,
+		apply = function(s) s.reload *= 0.72 end,
 	},
 	{
 		id = "y5", name = "Tempest", desc = "Lightning hits +2 blocks at 50% more range.",
 		branch = "yellow", col = 0, row = -4, cost = 7, requires = { "y3" }, icon = "bolt", shape = "square",
 		apply = function(s) s.chainTargets += 2 s.chainRange *= 1.5 end,
+	},
+
+	{
+		id = "y6", name = "Overclock", desc = "Cooldown 30% shorter. Roughly 2 seconds a shot.",
+		branch = "yellow", col = -1, row = -4, cost = 9, requires = { "y4" }, icon = "clock", shape = "square",
+		apply = function(s) s.reload *= 0.7 end,
 	},
 
 	-- ── GREEN · Toxin ────────────────────────────────────────────────────────
@@ -340,14 +348,20 @@ Config.TECH: { TechNode } = {
 		apply = function(s) s.poisonDps *= 2 end,
 	},
 	{
-		id = "g4", name = "Contagion", desc = "Poison creeps into neighbouring blocks.",
+		id = "g4", name = "Contagion", desc = "Rot creeps 1 block onward from each block it kills, then stops.",
 		branch = "green", col = 2, row = -3, cost = 5, requires = { "g2" }, icon = "spread", shape = "square",
-		apply = function(s) s.poisonSpreads = true end,
+		apply = function(s) s.poisonSpread = math.max(s.poisonSpread, 1) end,
 	},
 	{
 		id = "g5", name = "Necrosis", desc = "Poison lasts twice as long.",
 		branch = "green", col = 4, row = -2, cost = 7, requires = { "g3" }, icon = "skull", shape = "square",
 		apply = function(s) s.poisonTime *= 2 end,
+	},
+
+	{
+		id = "g6", name = "Pandemic", desc = "Rot creeps 2 more blocks onward before it burns out.",
+		branch = "green", col = 3, row = -3, cost = 9, requires = { "g4" }, icon = "spread", shape = "square",
+		apply = function(s) s.poisonSpread += 2 end,
 	},
 
 	-- ── BLUE · Velocity ──────────────────────────────────────────────────────
@@ -357,9 +371,9 @@ Config.TECH: { TechNode } = {
 		apply = function(s) s.speed *= 1.2 end,
 	},
 	{
-		id = "b2", name = "Ricochet", desc = "+5 bounces and +1s of flight.",
+		id = "b2", name = "Ricochet", desc = "+8 bounces and +3s of flight.",
 		branch = "blue", col = 2, row = 0, cost = 2, requires = { "b1" }, icon = "comet", shape = "square",
-		apply = function(s) s.bounces += 5 s.lifetime += 1 end,
+		apply = function(s) s.bounces += 8 s.lifetime += 3 end,
 	},
 	{
 		id = "b3", name = "Phase", desc = "Unlocks the Ghost ball.",
