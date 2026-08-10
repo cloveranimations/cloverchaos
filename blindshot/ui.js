@@ -202,10 +202,10 @@ function newRun() {
 
 /**
  * Calculate visibility based on distance from spawn.
- * Layer 0 (0-15): fully visible
- * Layer 1 (15-30): dimmed
- * Layer 2 (30-45): darker
- * Layer 3+ (45+): very dark / black
+ * Layer 1: at spawn (0-15 blocks): fully visible
+ * Layer 2 (15-30 blocks): dimmed
+ * Layer 3 (30-45 blocks): darker
+ * Layer 4+ (45+ blocks): very dark / black
  */
 function getLayerVisibility(col, row) {
   if (!world) return 1;
@@ -213,10 +213,10 @@ function getLayerVisibility(col, row) {
   const spawnRow = world.spawnRow || 6;
   const dist = Math.hypot(col - spawnCol, row - spawnRow);
 
-  if (dist < 15) return 1;      // Layer 0: fully visible
-  if (dist < 30) return 0.6;    // Layer 1: dim
-  if (dist < 45) return 0.35;   // Layer 2: darker
-  return 0.08;                  // Layer 3+: almost black but slightly visible
+  if (dist < 15) return 1;      // Layer 1: fully visible
+  if (dist < 30) return 0.6;    // Layer 2: dim
+  if (dist < 45) return 0.35;   // Layer 3: darker
+  return 0.08;                  // Layer 4+: almost black but slightly visible
 }
 
 /* ── Banner ──────────────────────────────────────────────────────────────── */

@@ -331,13 +331,13 @@ function genWorld(seed) {
     carve(w, 4 + Math.floor(rng() * (GRID_W - 8)), 12 + Math.floor(rng() * (GRID_H - 20)), 1.5 + rng() * 2.5);
   }
 
-  // Random spawn location (corner-ish, early tiers only)
+  // Random spawn location (corner-ish, early tiers only) — Layer 1
   const spawnCol = rng() < 0.5 ? 8 + Math.floor(rng() * 12) : GRID_W - 20 + Math.floor(rng() * 12);
   const spawnRow = 3 + Math.floor(rng() * 8);
   w.spawnCol = spawnCol;
   w.spawnRow = spawnRow;
 
-  // The prize: 70-90 blocks away from spawn, never in a void, never on the border.
+  // The prize: 70-90 blocks away from spawn (layers 3-6), never in a void, never on the border.
   let gi = -1;
   for (let attempt = 0; attempt < 1000 && gi < 0; attempt++) {
     const gc = 6 + Math.floor(rng() * (GRID_W - 12));
