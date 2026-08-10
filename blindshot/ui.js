@@ -149,6 +149,16 @@ function startWorld(seed, data) {
   } else {
     player.col = w.spawnCol; player.row = w.spawnRow;
     reach = 0; broken = 0; maxTier = 0;
+    // Clear the old hardcoded spawn location (50, 6) and its chamber so it never
+    // bleeds through from stale saves or initialization artifacts.
+    for (let dr = -5; dr <= 5; dr++) {
+      for (let dc = -5; dc <= 5; dc++) {
+        const row = 6 + dr, col = 50 + dc;
+        if (row >= 0 && row < GRID_H && col >= 0 && col < GRID_W) {
+          w.seen[row * GRID_W + col] = 0;
+        }
+      }
+    }
   }
   player.x = (player.col + 0.5) * CELL;
   player.y = (player.row + 0.5) * CELL;
