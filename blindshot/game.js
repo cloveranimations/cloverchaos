@@ -28,19 +28,37 @@ const TIERS = [
   { name: 'Void',  hp: 84,  color: '#7a3fb5' },
   { name: 'Core',  hp: 130, color: '#c22fa8' },
 ];
-const ROWS_PER_TIER = GRID_H / TIERS.length;
+/**
+ * Layers radiate out from the spawn point, they are not rows. Whatever corner
+ * the run drops you in, the rock touching you is layer 1 / Crust, so there is
+ * never a spawn you cannot dig out of. Every LAYER_RADIUS blocks of straight-
+ * line distance from spawn steps you one tier harder.
+ */
+const LAYER_RADIUS = 12;
 
-function tierOfRow(row) {
-  const t = Math.floor(row / ROWS_PER_TIER);
+/** 0-based tier index for a straight-line distance from spawn, in blocks. */
+function tierOfDist(dist) {
+  const t = Math.floor(dist / LAYER_RADIUS);
   return t < 0 ? 0 : t >= TIERS.length ? TIERS.length - 1 : t;
+}
+
+/** The number the HUD shows: layer 1 is the spawn chamber. */
+function layerOfDist(dist) {
+  return tierOfDist(dist) + 1;
+}
+
+function distFrom(col, row, fromCol, fromRow) {
+  const dc = col - fromCol, dr = row - fromRow;
+  return Math.sqrt(dc * dc + dr * dr);
 }
 
 const KIND_ROCK = 0, KIND_TOKEN = 1, KIND_GOLDEN = 2, KIND_BEDROCK = 3;
 
 /** 1 in N solid blocks hides a token, before luck bonuses. */
 const TOKEN_RARITY = 18;
-const GOLDEN_ROW_MIN = 86;
-const GOLDEN_ROW_MAX = 96;
+/** The prize sits this far from spawn, in blocks — layers 6 through 8. */
+const GOLDEN_DIST_MIN = 70;
+const GOLDEN_DIST_MAX = 90;
 const GOLDEN_HP = 40;
 /** Distance in blocks at which the golden block starts bleeding light through fog. */
 const GOLDEN_AURA = 11;
@@ -298,14 +316,22 @@ function genWorld(seed) {
     seed,
   };
 
+  // Spawn is picked before a single block is rolled, because it is the origin
+  // every tier is measured from. One of the four corners, inset far enough that
+  // the starting chamber never eats into the bedrock border.
+  const spawnCol = rng() < 0.5 ? 6 + Math.floor(rng() * 13) : GRID_W - 19 + Math.floor(rng() * 13);
+  const spawnRow = rng() < 0.5 ? 6 + Math.floor(rng() * 13) : GRID_H - 19 + Math.floor(rng() * 13);
+  w.spawnCol = spawnCol;
+  w.spawnRow = spawnRow;
+
   for (let row = 0; row < GRID_H; row++) {
-    const tier = tierOfRow(row);
-    const base = TIERS[tier].hp;
     for (let col = 0; col < GRID_W; col++) {
       const i = idx(col, row);
+      const tier = tierOfDist(distFrom(col, row, spawnCol, spawnRow));
       w.shade[i] = Math.floor(rng() * 256);
 
-      // Speckle neighbouring tier colours in so the seams read as real strata.
+      // Speckle neighbouring tier colours in so the rings read as real strata
+      // instead of clean contour lines.
       let hue = tier;
       const roll = rng();
       if (roll < 0.09 && tier > 0) hue = tier - 1;
@@ -319,7 +345,7 @@ function genWorld(seed) {
         continue;
       }
 
-      const hp = Math.max(1, Math.round(base * (0.75 + rng() * 0.55)));
+      const hp = Math.max(1, Math.round(TIERS[tier].hp * (0.75 + rng() * 0.55)));
       w.hp[i] = hp;
       w.maxHp[i] = hp;
       w.kind[i] = rng() * TOKEN_RARITY < 1 ? KIND_TOKEN : KIND_ROCK;
@@ -327,40 +353,39 @@ function genWorld(seed) {
   }
 
   // Natural voids, so the map is not a uniform slab and balls have room to fly.
+  // Kept out of layer 1 so the opening dig is solid rock you actually break.
   for (let v = 0; v < 26; v++) {
-    carve(w, 4 + Math.floor(rng() * (GRID_W - 8)), 12 + Math.floor(rng() * (GRID_H - 20)), 1.5 + rng() * 2.5);
+    const vc = 4 + Math.floor(rng() * (GRID_W - 8));
+    const vr = 4 + Math.floor(rng() * (GRID_H - 8));
+    if (distFrom(vc, vr, spawnCol, spawnRow) < LAYER_RADIUS) continue;
+    carve(w, vc, vr, 1.5 + rng() * 2.5);
   }
 
-  // Random spawn location (corner-ish, early tiers only) — Layer 1
-  const spawnCol = rng() < 0.5 ? 8 + Math.floor(rng() * 12) : GRID_W - 20 + Math.floor(rng() * 12);
-  const spawnRow = 3 + Math.floor(rng() * 8);
-  w.spawnCol = spawnCol;
-  w.spawnRow = spawnRow;
-
-  // The prize: 70-90 blocks away from spawn (layers 3-6), never in a void, never on the border.
-  let gi = -1;
-  for (let attempt = 0; attempt < 1000 && gi < 0; attempt++) {
-    const gc = 6 + Math.floor(rng() * (GRID_W - 12));
-    const gr = 6 + Math.floor(rng() * (GRID_H - 12));
-    const dist = Math.hypot(gc - spawnCol, gr - spawnRow);
-    if (dist >= 70 && dist <= 90) {
-      const i = idx(gc, gr);
-      if (w.hp[i] > 0 && w.kind[i] !== KIND_BEDROCK) gi = i;
+  // The prize, GOLDEN_DIST_MIN..MAX blocks out. Collected as a candidate list
+  // rather than dart-thrown, so it can never silently miss and fall back to
+  // somewhere close.
+  const ring = [];
+  for (let row = 1; row < GRID_H - 1; row++) {
+    for (let col = 1; col < GRID_W - 1; col++) {
+      const dist = distFrom(col, row, spawnCol, spawnRow);
+      if (dist < GOLDEN_DIST_MIN || dist > GOLDEN_DIST_MAX) continue;
+      const i = idx(col, row);
+      if (w.hp[i] > 0 && w.kind[i] !== KIND_BEDROCK) ring.push(i);
     }
   }
-  // Fallback: place at farthest valid location if no spot in range found
-  if (gi < 0) {
-    let maxDist = 0, bestI = idx(50, 50);
-    for (let attempt = 0; attempt < 200; attempt++) {
-      const gc = 6 + Math.floor(rng() * (GRID_W - 12));
-      const gr = 6 + Math.floor(rng() * (GRID_H - 12));
-      const i = idx(gc, gr);
-      if (w.hp[i] > 0 && w.kind[i] !== KIND_BEDROCK) {
-        const dist = Math.hypot(gc - spawnCol, gr - spawnRow);
-        if (dist > maxDist) { maxDist = dist; bestI = i; }
-      }
+  let gi;
+  if (ring.length) {
+    gi = ring[Math.floor(rng() * ring.length)];
+  } else {
+    // Only reachable if the ring is entirely bedrock/void — take the farthest
+    // solid block on the map instead, which is still the outermost layer there is.
+    gi = idx(GRID_W >> 1, GRID_H >> 1);
+    let far = -1;
+    for (let i = 0; i < CELLS; i++) {
+      if (w.hp[i] <= 0 || w.kind[i] === KIND_BEDROCK) continue;
+      const dist = distFrom(i % GRID_W, (i / GRID_W) | 0, spawnCol, spawnRow);
+      if (dist > far) { far = dist; gi = i; }
     }
-    gi = bestI;
   }
   w.kind[gi] = KIND_GOLDEN;
   w.hp[gi] = GOLDEN_HP;
@@ -447,9 +472,10 @@ function damageBlock(w, col, row, amount, ctx, soft) {
   }
 
   if (kind === KIND_TOKEN) {
-    // Deep rock takes far longer to break, so a token found down there is worth
+    // Outer rock takes far longer to break, so a token found out there is worth
     // more — otherwise income dries up exactly where upgrades matter most.
-    const gained = Math.max(1, Math.round(ctx.stats.luck * ctx.ballLuck * (1 + tierOfRow(row) * 0.35)));
+    const tier = tierOfDist(distFrom(col, row, w.spawnCol, w.spawnRow));
+    const gained = Math.max(1, Math.round(ctx.stats.luck * ctx.ballLuck * (1 + tier * 0.35)));
     ctx.fx.tokensGained += gained;
     ctx.fx.haptic = Math.max(ctx.fx.haptic, 3);
     ctx.fx.texts.push({ x: cx, y: cy, life: 1.1, text: '+' + gained, color: '#ffffff' });

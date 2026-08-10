@@ -4,7 +4,9 @@
  */
 'use strict';
 
-const SAVE_KEY = 'blindshot.save.v3';
+/* v4: tiers radiate from the spawn point instead of running by row, so a v3
+   grid restored into a v4 world would have mismatched rock. Old saves drop. */
+const SAVE_KEY = 'blindshot.save.v4';
 const WORLD_W = GRID_W * CELL;
 const WORLD_H = GRID_H * CELL;
 const MAX_PULL = 120;
@@ -78,7 +80,9 @@ const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
 let particles = [], arcs = [], texts = [];
 let reload = 0, shake = 0;
-let deepest = START_ROW, broken = 0, maxTier = 0;
+/** Furthest straight-line distance from spawn reached, in blocks. Drives the
+ *  LAYER readout and the level-up banner. */
+let reach = 0, broken = 0, maxTier = 0;
 let lastVib = 0, firedOnce = false;
 let miniDirty = true, miniTimer = 0;
 let bannerTimer = 0, bannerRank = 0;
@@ -118,13 +122,13 @@ function save() {
   if (!world) return;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
-      v: 3,
+      v: 4,
       seed: world.seed,
       tokens: state.tokens,
       unlocked: Array.from(state.unlocked),
       ball: state.activeBall,
       col: player.col, row: player.row,
-      deepest, broken,
+      reach, broken,
       won: state.won,
       sighted: world.goldenSighted,
       vibe: state.vibeOn, map: state.mapOn,
@@ -139,12 +143,12 @@ function startWorld(seed, data) {
   const restored = !!data && unrle(data.hp, w.hp) && unrle(data.seen, w.seen);
   if (restored) {
     player.col = data.col; player.row = data.row;
-    deepest = data.deepest; broken = data.broken;
-    maxTier = tierOfRow(data.deepest);
+    reach = data.reach || 0; broken = data.broken;
+    maxTier = tierOfDist(reach);
     w.goldenSighted = !!data.sighted;
   } else {
     player.col = w.spawnCol; player.row = w.spawnRow;
-    deepest = w.spawnRow; broken = 0; maxTier = 0;
+    reach = 0; broken = 0; maxTier = 0;
   }
   player.x = (player.col + 0.5) * CELL;
   player.y = (player.row + 0.5) * CELL;
@@ -161,7 +165,7 @@ function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
       const p = JSON.parse(raw);
-      if (p && p.v === 3 && Array.isArray(p.hp) && Array.isArray(p.seen)) data = p;
+      if (p && p.v === 4 && Array.isArray(p.hp) && Array.isArray(p.seen)) data = p;
     }
   } catch (_) { data = null; }
 
@@ -198,25 +202,25 @@ function newRun() {
   refreshAccent();
 }
 
-/* ── Layer system (distance-based visibility) ───────────────────────────── */
+/* ── Layers ──────────────────────────────────────────────────────────────── */
+
+/** Straight-line distance from this run's spawn point, in blocks. */
+function distFromSpawn(col, row) {
+  return world ? distFrom(col, row, world.spawnCol, world.spawnRow) : 0;
+}
+
+/** 0-based tier of a cell. Layer 1 (Crust) is whatever you spawned in. */
+function tierAt(col, row) {
+  return tierOfDist(distFromSpawn(col, row));
+}
 
 /**
- * Calculate visibility based on distance from spawn.
- * Layer 1: at spawn (0-15 blocks): fully visible
- * Layer 2 (15-30 blocks): dimmed
- * Layer 3 (30-45 blocks): darker
- * Layer 4+ (45+ blocks): very dark / black
+ * Explored rock loses a little light the further out it sits, so the ring you
+ * are standing in reads brighter than the ones behind you. Bottoms out well
+ * short of black — the tier colour still has to be legible out there.
  */
-function getLayerVisibility(col, row) {
-  if (!world) return 1;
-  const spawnCol = world.spawnCol || 50;
-  const spawnRow = world.spawnRow || 6;
-  const dist = Math.hypot(col - spawnCol, row - spawnRow);
-
-  if (dist < 15) return 1;      // Layer 1: fully visible
-  if (dist < 30) return 0.6;    // Layer 2: dim
-  if (dist < 45) return 0.35;   // Layer 3: darker
-  return 0.08;                  // Layer 4+: almost black but slightly visible
+function layerShade(tier) {
+  return 1 - Math.min(tier, TIERS.length - 1) * 0.06;
 }
 
 /* ── Banner ──────────────────────────────────────────────────────────────── */
@@ -237,8 +241,8 @@ function banner(text, seconds, rank) {
 /* ── HUD ─────────────────────────────────────────────────────────────────── */
 
 function syncHud(force) {
-  el.depth.textContent = deepest;
-  const t = tierOfRow(player.row);
+  el.depth.textContent = Math.round(distFromSpawn(player.col, player.row));
+  const t = tierAt(player.col, player.row);
   el.lvl.textContent = t + 1;
   el.tier.textContent = TIERS[t].name.toUpperCase();
   el.tier.style.color = TIERS[t].color;
@@ -544,7 +548,7 @@ function endPointer(e) {
       player.col = target.col; player.row = target.row;
       player.x = (target.col + 0.5) * CELL;
       player.y = (target.row + 0.5) * CELL;
-      if (target.row > deepest) deepest = target.row;
+      reach = Math.max(reach, distFromSpawn(target.col, target.row));
       buzz(6);
       miniDirty = true;
     }
@@ -642,14 +646,14 @@ const miniImg = mctx.createImageData(GRID_W, GRID_H);
 
 function drawMini() {
   const d = miniImg.data;
-  const goldRow0 = GOLDEN_ROW_MIN, goldRow1 = GOLDEN_ROW_MAX;
   for (let i = 0; i < CELLS; i++) {
     const o = i * 4;
-    const row = (i / GRID_W) | 0;
     if (!world.seen[i]) {
-      // Undiscovered. The golden band gets the faintest possible hint so the
-      // map tells you where to dig without telling you which block it is.
-      const band = row >= goldRow0 && row <= goldRow1;
+      // Undiscovered. The ring the golden block can sit in gets the faintest
+      // possible hint, so the map tells you how far to dig without telling you
+      // which block it is.
+      const dist = distFromSpawn(i % GRID_W, (i / GRID_W) | 0);
+      const band = dist >= GOLDEN_DIST_MIN && dist <= GOLDEN_DIST_MAX;
       d[o] = band ? 22 : 6;
       d[o + 1] = band ? 18 : 14;
       d[o + 2] = band ? 5 : 9;
@@ -707,8 +711,7 @@ function update(dt, now) {
     dmg.ballLuck = BALLS[b.type].luckMul;
     dmg.ballReveal = BALLS[b.type].revealBonus;
     stepBall(world, b, dt, dmg);
-    const row = Math.floor(b.y / CELL);
-    if (row > deepest) deepest = row;
+    reach = Math.max(reach, distFromSpawn(b.x / CELL, b.y / CELL));
     if (!b.dead) alive.push(b);
   }
   balls = alive;
@@ -751,15 +754,15 @@ function update(dt, now) {
   if (fx.goldenBroken && !state.won) {
     state.won = true;
     el.winSub.textContent =
-      `${broken.toLocaleString()} blocks broken · ${deepest}m deep · ◆${state.tokens} left over`;
+      `${broken.toLocaleString()} blocks broken · ${Math.round(reach)} blocks out · ◆${state.tokens} left over`;
     el.win.classList.add('open');
     save();
   }
 
-  const tier = tierOfRow(deepest);
+  const tier = tierOfDist(reach);
   if (tier > maxTier) {
     maxTier = tier;
-    banner(`LEVEL ${tier + 1} — ${TIERS[tier].name.toUpperCase()}`, 2.6);
+    banner(`LAYER ${tier + 1} — ${TIERS[tier].name.toUpperCase()}`, 2.6);
     buzz([20, 40, 20]);
   }
 
@@ -854,14 +857,11 @@ function draw(now) {
       if (hp <= 0) continue; // carved out — background shows through
       const kind = world.kind[i];
 
-      const layerVis = getLayerVisibility(col, row);
-
       if (kind === KIND_GOLDEN) {
         c.save();
         c.shadowColor = PALETTE.golden;
         c.shadowBlur = 30 + 16 * pulse;
         c.fillStyle = PALETTE.golden;
-        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
         c.fillStyle = '#fff9d9';
         c.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
@@ -874,13 +874,11 @@ function draw(now) {
         c.shadowColor = '#ffffff';
         c.shadowBlur = 12 + 8 * pulse;
         c.fillStyle = '#ffffff';
-        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
         c.restore();
         const td = 1 - hp / Math.max(1, world.maxHp[i]);
         if (td > 0.02) {
           c.fillStyle = `rgba(0,0,0,${td * 0.5})`;
-          c.globalAlpha = layerVis;
           c.fillRect(x, y, CELL, CELL);
         }
         continue;
@@ -888,42 +886,38 @@ function draw(now) {
 
       if (kind === KIND_BEDROCK) {
         c.fillStyle = '#12181a';
-        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
         c.fillStyle = '#1c2427';
         c.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
-        c.globalAlpha = 1;
         continue;
       }
 
+      // Rock: tier colour, then a touch darker for every layer out from spawn.
       c.fillStyle = COLOR_TABLE[world.hue[i]][world.shade[i] >> 5];
-      c.globalAlpha = layerVis;
       c.fillRect(x, y, CELL, CELL);
-      c.globalAlpha = 1;
+      const shade = layerShade(tierAt(col, row));
+      if (shade < 1) {
+        c.fillStyle = `rgba(0,0,0,${(1 - shade).toFixed(3)})`;
+        c.fillRect(x, y, CELL, CELL);
+      }
 
       const d = 1 - hp / Math.max(1, world.maxHp[i]);
       if (d > 0.02) {
         c.fillStyle = `rgba(0,0,0,${d * 0.62})`;
-        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
-        c.globalAlpha = 1;
         if (d > 0.45) {
           c.strokeStyle = 'rgba(0,0,0,.55)';
           c.lineWidth = 1.4;
-          c.globalAlpha = layerVis;
           c.beginPath();
           c.moveTo(x + 3, y + CELL - 4);
           c.lineTo(x + CELL * 0.5, y + CELL * 0.45);
           c.lineTo(x + CELL - 3, y + 4);
           c.stroke();
-          c.globalAlpha = 1;
         }
       }
       if (world.poisonT[i] > 0) {
         c.fillStyle = `rgba(61,220,97,${0.18 + 0.16 * pulse})`;
-        c.globalAlpha = layerVis;
         c.fillRect(x, y, CELL, CELL);
-        c.globalAlpha = 1;
       }
     }
   }

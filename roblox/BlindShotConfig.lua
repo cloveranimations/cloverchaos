@@ -11,8 +11,10 @@
 	from the server, a client, or a plugin.
 
 	Coordinate convention matches the web build: `col` runs left→right, `row`
-	runs top→bottom (row 0 is the surface, row 99 is the deepest). When you map
-	this onto a 3D Roblox world, row becomes -Y.
+	runs top→bottom. When you map this onto a 3D Roblox world, row becomes -Y.
+
+	Difficulty is radial, not vertical: tiers are rings measured from the run's
+	spawn point, so neither axis is "the deep end" on its own.
 ]]
 
 local Config = {}
@@ -24,16 +26,17 @@ Config.GRID_H = 100
 --- Studs per block. Blocks are square.
 Config.CELL = 16
 
---- Where the player starts, in block coordinates.
-Config.START_COL = 50
-Config.START_ROW = 6
+--- The spawn is rolled per-run from the seed, in one of the four corners: each
+--- axis lands within this many blocks of its near or far edge.
+Config.SPAWN_INSET_MIN = 6
+Config.SPAWN_INSET_MAX = 18
 --- Radius (in blocks) of the pre-carved starting chamber.
 Config.START_CHAMBER = 3
 
 --- Solid, indestructible frame so balls can never leave the map.
 Config.BEDROCK_HP = 32000
 
--- ─── Depth tiers ("levels") ──────────────────────────────────────────────────
+-- ─── Layers ──────────────────────────────────────────────────────────────────
 
 export type Tier = {
 	name: string,
@@ -42,7 +45,8 @@ export type Tier = {
 	color: Color3,
 }
 
---- 8 tiers spread evenly down the map — 12.5 rows each.
+--- 8 tiers as rings around the spawn point. Layer 1 is whatever you spawned in,
+--- so there is no such thing as a spawn you cannot dig out of.
 Config.TIERS: { Tier } = {
 	{ name = "Crust", hp = 3, color = Color3.fromHex("#9aa4a8") },
 	{ name = "Moss", hp = 6, color = Color3.fromHex("#4ea85c") },
@@ -54,11 +58,18 @@ Config.TIERS: { Tier } = {
 	{ name = "Core", hp = 130, color = Color3.fromHex("#c22fa8") },
 }
 
-Config.ROWS_PER_TIER = Config.GRID_H / #Config.TIERS
+--- Blocks of straight-line distance from spawn per tier step.
+Config.LAYER_RADIUS = 12
 
---- 1-based tier index for a 0-based row.
-function Config.tierOfRow(row: number): number
-	local t = math.floor(row / Config.ROWS_PER_TIER) + 1
+function Config.distFrom(col: number, row: number, fromCol: number, fromRow: number): number
+	local dc, dr = col - fromCol, row - fromRow
+	return math.sqrt(dc * dc + dr * dr)
+end
+
+--- 1-based tier index for a distance from spawn, in blocks. This is also the
+--- layer number the HUD shows: layer 1 is the spawn chamber.
+function Config.tierOfDist(dist: number): number
+	local t = math.floor(dist / Config.LAYER_RADIUS) + 1
 	return math.clamp(t, 1, #Config.TIERS)
 end
 
@@ -72,15 +83,16 @@ Config.KIND_BEDROCK = 3
 --- 1 in N solid blocks hides an upgrade token, before luck bonuses. Tuned so
 --- the first token shows up within the opening few shots.
 Config.TOKEN_RARITY = 18
---- The golden block only ever spawns in this row band.
-Config.GOLDEN_ROW_MIN = 86
-Config.GOLDEN_ROW_MAX = 96
+--- The golden block only ever spawns in this ring around the spawn point,
+--- measured in blocks — layers 6 through 8.
+Config.GOLDEN_DIST_MIN = 70
+Config.GOLDEN_DIST_MAX = 90
 Config.GOLDEN_HP = 40
 
---- Deep tokens are worth more, so income does not dry up where rock is hardest.
-function Config.tokenValue(row: number, luck: number, ballLuck: number): number
-	local depthBonus = 1 + (Config.tierOfRow(row) - 1) * 0.35
-	return math.max(1, math.round(luck * ballLuck * depthBonus))
+--- Outer tokens are worth more, so income does not dry up where rock is hardest.
+function Config.tokenValue(dist: number, luck: number, ballLuck: number): number
+	local layerBonus = 1 + (Config.tierOfDist(dist) - 1) * 0.35
+	return math.max(1, math.round(luck * ballLuck * layerBonus))
 end
 
 -- ─── Palette ─────────────────────────────────────────────────────────────────
