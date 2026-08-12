@@ -101,8 +101,8 @@ const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
 const JOYSTICK_DEADZONE = 12;
 
-/** Top speed at full stick, in px/s. CELL is 16, so this is ~2.8 blocks/sec. */
-const MOVE_SPEED = 45;
+/** Top speed at full stick, in px/s. CELL is 16, so this is ~7 blocks/sec. */
+const MOVE_SPEED = 112;
 /**
  * How sharply velocity chases the stick, per second. Acceleration is quicker
  * than the coast so the triangle answers the thumb immediately but still
