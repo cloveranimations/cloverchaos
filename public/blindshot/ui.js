@@ -18,7 +18,7 @@ const MAX_PULL = 120;
 const $ = (id) => document.getElementById(id);
 const el = {
   cv: $('cv'), mini: $('mini'), miniWrap: $('miniWrap'),
-  depth: $('depth'), lvl: $('lvl'), tier: $('tier'), tokens: $('tokens'),
+  depth: $('depth'), tokens: $('tokens'),
   vibBtn: $('vibBtn'), mapBtn: $('mapBtn'), techBtn: $('techBtn'),
   compass: $('compass'), compassTxt: $('compassTxt'), banner: $('banner'), help: $('help'),
   cdFill: $('cdFill'), cdText: $('cdText'), chips: $('chips'),
@@ -82,8 +82,8 @@ const player = { col: START_COL, row: START_ROW, x: 0, y: 0, vx: 0, vy: 0 };
 const cam = { x: 0, y: 0 };
 const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
-const joystickL = { id: -1, x: 0, y: 0, active: false };
-const joystickR = { id: -1, x: 0, y: 0, active: false };
+const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
+const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
 const JOYSTICK_DEADZONE = 15;
 const JOYSTICK_MOVE_SPEED = 60;
@@ -624,9 +624,11 @@ el.cv.addEventListener('pointerdown', (e) => {
   const isLeftHalf = e.clientX < cssW / 2;
   if (isLeftHalf) {
     joystickL.id = e.pointerId; joystickL.active = true;
+    joystickL.cx = cssW / 4; joystickL.cy = cssH - JOYSTICK_RADIUS - 30;
     joystickL.x = e.clientX; joystickL.y = e.clientY;
   } else {
     joystickR.id = e.pointerId; joystickR.active = true;
+    joystickR.cx = cssW * 3 / 4; joystickR.cy = cssH - JOYSTICK_RADIUS - 30;
     joystickR.x = e.clientX; joystickR.y = e.clientY;
     aim.active = true; aim.sx = e.clientX; aim.sy = e.clientY; aim.power = 0;
   }
@@ -634,7 +636,8 @@ el.cv.addEventListener('pointerdown', (e) => {
 
 el.cv.addEventListener('pointermove', (e) => {
   if (e.pointerId === joystickL.id && joystickL.active) {
-    const dx = e.clientX - joystickL.x, dy = e.clientY - joystickL.y;
+    joystickL.x = e.clientX; joystickL.y = e.clientY;
+    const dx = e.clientX - joystickL.cx, dy = e.clientY - joystickL.cy;
     const dist = Math.hypot(dx, dy);
     if (dist > JOYSTICK_DEADZONE) {
       const angle = Math.atan2(dy, dx);
@@ -645,6 +648,7 @@ el.cv.addEventListener('pointermove', (e) => {
       player.vx = 0; player.vy = 0;
     }
   } else if (e.pointerId === joystickR.id && joystickR.active) {
+    joystickR.x = e.clientX; joystickR.y = e.clientY;
     const dx = aim.sx - e.clientX, dy = aim.sy - e.clientY;
     const len = Math.hypot(dx, dy);
     if (len > 4) {
@@ -958,18 +962,17 @@ function renderJoysticks(c) {
   c.lineWidth = 2;
 
   if (joystickL.active) {
-    const baseCx = cssW / 4, baseCy = cssH - JOYSTICK_RADIUS - 30;
     c.beginPath();
-    c.arc(baseCx, baseCy, JOYSTICK_RADIUS, 0, Math.PI * 2);
+    c.arc(joystickL.cx, joystickL.cy, JOYSTICK_RADIUS, 0, Math.PI * 2);
     c.fill();
     c.stroke();
 
-    const dx = joystickL.x - baseCx;
-    const dy = joystickL.y - baseCy;
+    const dx = joystickL.x - joystickL.cx;
+    const dy = joystickL.y - joystickL.cy;
     const dist = Math.hypot(dx, dy);
     const clamped = Math.min(dist, JOYSTICK_RADIUS);
-    const thumbCx = baseCx + (dx / Math.max(dist, 0.1)) * clamped;
-    const thumbCy = baseCy + (dy / Math.max(dist, 0.1)) * clamped;
+    const thumbCx = joystickL.cx + (dx / Math.max(dist, 0.1)) * clamped;
+    const thumbCy = joystickL.cy + (dy / Math.max(dist, 0.1)) * clamped;
     c.fillStyle = accentRgba(0.6);
     c.beginPath();
     c.arc(thumbCx, thumbCy, 20, 0, Math.PI * 2);
@@ -977,20 +980,19 @@ function renderJoysticks(c) {
   }
 
   if (joystickR.active) {
-    const baseCx = cssW * 3 / 4, baseCy = cssH - JOYSTICK_RADIUS - 30;
     c.fillStyle = 'rgba(255,255,255,0.15)';
     c.strokeStyle = accentRgba(0.3);
     c.beginPath();
-    c.arc(baseCx, baseCy, JOYSTICK_RADIUS, 0, Math.PI * 2);
+    c.arc(joystickR.cx, joystickR.cy, JOYSTICK_RADIUS, 0, Math.PI * 2);
     c.fill();
     c.stroke();
 
-    const dx = joystickR.x - baseCx;
-    const dy = joystickR.y - baseCy;
+    const dx = joystickR.x - joystickR.cx;
+    const dy = joystickR.y - joystickR.cy;
     const dist = Math.hypot(dx, dy);
     const clamped = Math.min(dist, JOYSTICK_RADIUS);
-    const thumbCx = baseCx + (dx / Math.max(dist, 0.1)) * clamped;
-    const thumbCy = baseCy + (dy / Math.max(dist, 0.1)) * clamped;
+    const thumbCx = joystickR.cx + (dx / Math.max(dist, 0.1)) * clamped;
+    const thumbCy = joystickR.cy + (dy / Math.max(dist, 0.1)) * clamped;
     c.fillStyle = accentRgba(0.6);
     c.beginPath();
     c.arc(thumbCx, thumbCy, 20, 0, Math.PI * 2);
