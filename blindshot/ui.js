@@ -1,6 +1,10 @@
 /*
- * BlindShot — presentation layer: canvas render, minimap, tech tree, haptics.
- * Everything simulation-shaped lives in game.js.
+ * BlindShot — DOM layer: input, HUD, minimap, tech tree, haptics, and the
+ * frame loop that drives the other three files.
+ *
+ * Load order is config.js → engine.js → render.js → this. The first two are
+ * DOM-free and port to Luau as-is; this file and render.js are the parts a
+ * Roblox build replaces.
  */
 'use strict';
 
@@ -19,7 +23,7 @@ const el = {
   compass: $('compass'), compassTxt: $('compassTxt'), banner: $('banner'), help: $('help'),
   cdFill: $('cdFill'), cdText: $('cdText'), chips: $('chips'),
   tree: $('tree'), treeView: $('treeView'), treePan: $('treePan'), treeSvg: $('treeSvg'),
-  treeTokens: $('treeTokens'), treeClose: $('treeClose'),
+  treeTokens: $('treeTokens'), treeClose: $('treeClose'), nodeCard: $('nodeCard'),
   dNm: $('dNm'), dDs: $('dDs'), dBtn: $('dBtn'),
   card: $('card'), cardName: $('cardName'), cardDesc: $('cardDesc'),
   win: $('win'), winSub: $('winSub'), winBtn: $('winBtn'),
@@ -28,21 +32,21 @@ const el = {
 const ctx = el.cv.getContext('2d', { alpha: false });
 const mctx = el.mini.getContext('2d');
 
-/* ── Colour helpers ──────────────────────────────────────────────────────── */
+/* Colour helpers and the block renderer live in render.js. */
 
-function hexToRgb(hex) {
-  return {
-    r: parseInt(hex.slice(1, 3), 16),
-    g: parseInt(hex.slice(3, 5), 16),
-    b: parseInt(hex.slice(5, 7), 16),
-  };
+const lightMap = newLightMap();
+
+/** Every ball is a moving lamp in its own ball colour. Cached per type. */
+const BALL_LIGHT = {};
+for (const id of BALL_ORDER) {
+  const c = hexToRgb(BALLS[id].color);
+  BALL_LIGHT[id] = [c.r / 255, c.g / 255, c.b / 255];
 }
-function shadeHex(hex, mul) {
-  const c = hexToRgb(hex);
-  return `rgb(${Math.min(255, Math.round(c.r * mul))},${Math.min(255, Math.round(c.g * mul))},${Math.min(255, Math.round(c.b * mul))})`;
-}
-const COLOR_TABLE = TIERS.map((t) => Array.from({ length: 8 }, (_, k) => shadeHex(t.color, 0.74 + k * 0.075)));
-const TIER_RGB = TIERS.map((t) => hexToRgb(t.color));
+const ballLightRgb = (type) => BALL_LIGHT[type] || BALL_LIGHT.basic;
+const PLAYER_LIGHT = (() => {
+  const c = hexToRgb(PALETTE.player);
+  return [c.r / 255, c.g / 255, c.b / 255];
+})();
 
 /* ── Haptics ─────────────────────────────────────────────────────────────── */
 
@@ -358,7 +362,10 @@ function buildTree() {
       line.setAttribute('x2', px(n) + NODE_SIZE / 2);
       line.setAttribute('y2', py(n) + NODE_SIZE / 2);
       line.setAttribute('stroke', PALETTE.branch[n.branch]);
-      line.setAttribute('stroke-width', '2');
+      line.setAttribute('stroke-width', '3');
+      // Dotted, not solid: the tree should read as a wiring diagram.
+      line.setAttribute('stroke-dasharray', '1 7');
+      line.setAttribute('stroke-linecap', 'round');
       line.setAttribute('opacity', '.3');
       line.dataset.edge = n.id;
       el.treeSvg.appendChild(line);
@@ -366,21 +373,19 @@ function buildTree() {
   }
 
   el.treePan.textContent = '';
+  el.treePan.appendChild(el.nodeCard); // survives the wipe above
   el.treePan.style.width = W + 'px';
   el.treePan.style.height = H + 'px';
   for (const n of TECH) {
     const color = PALETTE.branch[n.branch];
     const b = document.createElement('button');
-    b.className = 'node ' + n.shape;
+    b.className = 'node';
     b.style.left = px(n) + 'px';
     b.style.top = py(n) + 'px';
-    b.style.color = color;
-    b.style.borderColor = color;
-    b.style.border = '2px solid ' + color;
+    b.style.setProperty('--nc', color);
     b.title = n.name;
     b.innerHTML =
-      `<svg width="22" height="22" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">${ICONS[n.icon]}</svg>` +
-      (n.cost > 0 ? `<span class="cost">${n.cost}</span>` : '');
+      `<svg width="22" height="22" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">${ICONS[n.icon]}</svg>`;
     b.addEventListener('pointerenter', () => { hoverAccent = color; refreshAccent(); });
     b.addEventListener('pointerleave', () => { hoverAccent = null; refreshAccent(); });
     b.addEventListener('click', (e) => {
@@ -425,25 +430,126 @@ function canAfford(n) {
     && state.tokens >= n.cost;
 }
 
+/* ── Node card ────────────────────────────────────────────────────────────
+ *
+ * What a node is worth is derived, never hand-written: price the stat block
+ * with and without the node and diff it. That way the card stays honest when
+ * the tree is retuned, and a new node needs no copy written for it.
+ */
+
+/** Stats that read better as a percentage of their base than as a raw number. */
+const STAT_PCT = new Set(['speed', 'damageMul', 'splashFactor', 'luck', 'chainDamage']);
+const STAT_SEC = new Set(['reload', 'lifetime', 'poisonTime']);
+/** Stats with no natural card line — they are described, not numbered. */
+const STAT_HIDE = new Set(['compass']);
+
+function fmtStat(key, v) {
+  if (STAT_PCT.has(key)) {
+    const base = BASE_STATS[key] || 1;
+    const pct = Math.round((v / base - 1) * 100);
+    return (pct >= 0 ? '+' : '') + pct + '%';
+  }
+  if (STAT_SEC.has(key)) return (Math.round(v * 10) / 10) + 's';
+  return String(Math.round(v * 100) / 100);
+}
+
+/** The change on its own — "+20%" for a ratio stat, "+1" for a flat one. */
+function deltaLabel(d) {
+  const sign = d.to >= d.from ? '+' : '';
+  if (STAT_PCT.has(d.key)) {
+    const base = BASE_STATS[d.key] || 1;
+    return sign + Math.round(((d.to - d.from) / base) * 100) + '%';
+  }
+  const raw = Math.round((d.to - d.from) * 100) / 100;
+  return sign + raw + (STAT_SEC.has(d.key) ? 's' : '');
+}
+
+/** `{ key, from, to }` for the one stat a node moves most, or null. */
+function nodeDelta(n) {
+  const without = new Set(state.unlocked);
+  without.delete(n.id);
+  const before = statsFor(without);
+  const after = statsFor(new Set(without).add(n.id));
+  let best = null;
+  for (const key of Object.keys(before)) {
+    if (STAT_HIDE.has(key) || before[key] === after[key]) continue;
+    const rel = Math.abs((after[key] - before[key]) / (Math.abs(before[key]) || 1));
+    if (!best || rel > best.rel) best = { key, from: before[key], to: after[key], rel };
+  }
+  return best;
+}
+
+function syncNodeCard(n) {
+  const b = nodeEls[n.id];
+  if (!b) { el.nodeCard.style.display = 'none'; return; }
+  const owned = state.unlocked.has(n.id);
+  const color = PALETTE.branch[n.branch];
+
+  let kicker, big, sub;
+  if (n.unlocksBall) {
+    kicker = owned ? 'Ball' : 'New ball';
+    big = BALLS[n.unlocksBall].name;
+    sub = n.branch.charAt(0).toUpperCase() + n.branch.slice(1);
+  } else {
+    const d = nodeDelta(n);
+    kicker = n.name;
+    if (!d) { big = n.desc; sub = ''; }
+    else if (owned) { big = fmtStat(d.key, d.to); sub = ''; }
+    else {
+      big = fmtStat(d.key, d.from) + ' > ' + fmtStat(d.key, d.to);
+      sub = deltaLabel(d);
+    }
+  }
+
+  el.nodeCard.style.display = '';
+  el.nodeCard.style.setProperty('--nc', color);
+  el.nodeCard.innerHTML =
+    `<div class="k">${kicker}</div><div class="v">${big}</div>` +
+    (sub ? `<div class="s">${sub}</div>` : '') +
+    (!owned && n.cost > 0 ? `<div class="c">◆ ${n.cost}</div>` : '');
+
+  // Anchor above the node, clamped so it never hangs off the pannable area.
+  const left = parseFloat(b.style.left) + NODE_SIZE / 2;
+  const top = parseFloat(b.style.top);
+  el.nodeCard.style.left = '0px';
+  el.nodeCard.style.top = '0px';
+  const cw = el.nodeCard.offsetWidth, ch = el.nodeCard.offsetHeight;
+  el.nodeCard.style.left = Math.round(left - cw / 2) + 'px';
+  el.nodeCard.style.top = Math.round(top - ch - 16) + 'px';
+
+  // Retrigger the deal-in animation on every reselect.
+  el.nodeCard.style.animation = 'none';
+  void el.nodeCard.offsetWidth;
+  el.nodeCard.style.animation = '';
+}
+
 function syncTree() {
   for (const n of TECH) {
     const b = nodeEls[n.id];
     if (!b) continue;
     const owned = state.unlocked.has(n.id);
     const ready = n.requires.every((r) => state.unlocked.has(r));
+    // "far" is one step beyond reachable: its prerequisites are not owned and
+    // neither are theirs, so it is context rather than a choice.
+    const near = ready || n.requires.some((r) => {
+      const p = TECH_BY_ID[r];
+      return p && p.requires.every((rr) => state.unlocked.has(rr));
+    });
     b.classList.toggle('owned', owned);
-    b.classList.toggle('locked', !owned && !ready);
+    b.classList.toggle('ready', !owned && ready);
+    b.classList.toggle('far', !owned && !near);
     b.classList.toggle('short', !owned && ready && state.tokens < n.cost);
     b.classList.toggle('sel', selectedNodeId === n.id);
-    b.style.boxShadow = owned ? `0 0 16px -2px ${PALETTE.branch[n.branch]}` : 'none';
-    const tick = b.querySelector('.tick');
-    if (owned && !tick) {
+
+    const plus = b.querySelector('.plus');
+    const buyable = !owned && ready && state.tokens >= n.cost;
+    if (buyable && !plus) {
       const s = document.createElement('span');
-      s.className = 'tick';
-      s.textContent = '✔';
+      s.className = 'plus';
+      s.textContent = '+';
       b.appendChild(s);
-    } else if (!owned && tick) {
-      tick.remove();
+    } else if (!buyable && plus) {
+      plus.remove();
     }
   }
   for (const line of Array.from(el.treeSvg.children)) {
@@ -454,6 +560,7 @@ function syncTree() {
   el.dNm.textContent = n.name;
   el.dDs.textContent = n.desc;
   el.treeTokens.textContent = '◆ ' + state.tokens;
+  syncNodeCard(n);
 
   if (state.unlocked.has(n.id)) {
     el.dBtn.textContent = 'OWNED';
@@ -839,7 +946,7 @@ function draw(now) {
 
   c.setTransform(dpr, 0, 0, dpr, 0, 0);
   c.imageSmoothingEnabled = false;
-  c.fillStyle = PALETTE.bg;
+  c.fillStyle = PALETTE.unseen;
   c.fillRect(0, 0, cssW, cssH);
 
   c.save();
@@ -853,88 +960,23 @@ function draw(now) {
   const r1 = Math.min(GRID_H - 1, Math.ceil((cam.y + halfH) / CELL) + 1);
   const pulse = 0.55 + 0.45 * Math.sin(now / 260);
 
-  for (let row = r0; row <= r1; row++) {
-    for (let col = c0; col <= c1; col++) {
-      const i = idx(col, row);
-      const x = col * CELL, y = row * CELL;
-
-      if (!world.seen[i]) {
-        c.fillStyle = PALETTE.unseen;
-        c.fillRect(x, y, CELL, CELL);
-        continue;
-      }
-      const hp = world.hp[i];
-      if (hp <= 0) continue; // carved out — background shows through
-      const kind = world.kind[i];
-
-      if (kind === KIND_GOLDEN) {
-        c.save();
-        c.shadowColor = PALETTE.golden;
-        c.shadowBlur = 30 + 16 * pulse;
-        c.fillStyle = PALETTE.golden;
-        c.fillRect(x, y, CELL, CELL);
-        c.fillStyle = '#fff9d9';
-        c.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
-        c.restore();
-        continue;
-      }
-
-      if (kind === KIND_TOKEN) {
-        c.save();
-        c.shadowColor = '#ffffff';
-        c.shadowBlur = 12 + 8 * pulse;
-        c.fillStyle = '#ffffff';
-        c.fillRect(x, y, CELL, CELL);
-        c.restore();
-        const td = 1 - hp / Math.max(1, world.maxHp[i]);
-        if (td > 0.02) {
-          c.fillStyle = `rgba(0,0,0,${td * 0.5})`;
-          c.fillRect(x, y, CELL, CELL);
-        }
-        continue;
-      }
-
-      if (kind === KIND_BEDROCK) {
-        c.fillStyle = '#12181a';
-        c.fillRect(x, y, CELL, CELL);
-        c.fillStyle = '#1c2427';
-        c.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
-        continue;
-      }
-
-      // Rock: tier colour, then a touch darker for every layer out from spawn.
-      c.fillStyle = COLOR_TABLE[world.hue[i]][world.shade[i] >> 5];
-      c.fillRect(x, y, CELL, CELL);
-      const shade = layerShade(tierAt(col, row));
-      if (shade < 1) {
-        c.fillStyle = `rgba(0,0,0,${(1 - shade).toFixed(3)})`;
-        c.fillRect(x, y, CELL, CELL);
-      }
-
-      const d = 1 - hp / Math.max(1, world.maxHp[i]);
-      if (d > 0.02) {
-        c.fillStyle = `rgba(0,0,0,${d * 0.62})`;
-        c.fillRect(x, y, CELL, CELL);
-        if (d > 0.45) {
-          c.strokeStyle = 'rgba(0,0,0,.55)';
-          c.lineWidth = 1.4;
-          c.beginPath();
-          c.moveTo(x + 3, y + CELL - 4);
-          c.lineTo(x + CELL * 0.5, y + CELL * 0.45);
-          c.lineTo(x + CELL - 3, y + 4);
-          c.stroke();
-        }
-      }
-      if (world.poisonT[i] > 0) {
-        c.fillStyle = `rgba(61,220,97,${0.18 + 0.16 * pulse})`;
-        c.fillRect(x, y, CELL, CELL);
-      }
-    }
+  // Balls and the player carry their own light, so a shot lights its own way
+  // through unlit rock. Collected fresh each frame — these are not baked in.
+  const moving = [];
+  for (const b of balls) {
+    moving.push({
+      col: Math.floor(b.x / CELL), row: Math.floor(b.y / CELL),
+      rgb: ballLightRgb(b.type), power: 3.2,
+    });
   }
+  moving.push({ col: player.col, row: player.row, rgb: PLAYER_LIGHT, power: 2.4 });
 
-  // The golden block bleeds light through solid rock once you are close. This
-  // is the "hot / cold" signal — without it the last twenty rows are a
-  // featureless grind and the prize is pure luck.
+  buildLight(lightMap, world, c0, c1, r0, r1, moving);
+  renderBlocks(c, world, lightMap, c0, c1, r0, r1, pulse);
+  renderGlow(c, world, lightMap, c0, c1, r0, r1, 0.30);
+
+  // The golden block is a lamp in its own right, so the light map already
+  // bleeds it through rock. All that is left is the pulse that says "close".
   if (world.goldenIdx >= 0 && world.hp[world.goldenIdx] > 0) {
     const gx = ((world.goldenIdx % GRID_W) + 0.5) * CELL;
     const gy = (((world.goldenIdx / GRID_W) | 0) + 0.5) * CELL;
@@ -943,7 +985,7 @@ function draw(now) {
       const strength = Math.max(0, 1 - dist / (GOLDEN_AURA * 2.4));
       const rad = GOLDEN_AURA * CELL;
       const g = c.createRadialGradient(gx, gy, 0, gx, gy, rad);
-      g.addColorStop(0, `rgba(255,210,61,${0.5 * strength * (0.7 + 0.3 * pulse)})`);
+      g.addColorStop(0, `rgba(255,210,61,${0.34 * strength * (0.6 + 0.4 * pulse)})`);
       g.addColorStop(1, 'rgba(255,210,61,0)');
       c.save();
       c.globalCompositeOperation = 'lighter';
@@ -953,73 +995,14 @@ function draw(now) {
     }
   }
 
-  if (arcs.length) {
-    c.save();
-    c.strokeStyle = '#f7ef7a';
-    c.shadowColor = '#f4e04d';
-    c.shadowBlur = 10;
-    c.lineWidth = 1.6;
-    for (const a of arcs) {
-      c.globalAlpha = Math.min(1, a.life / 0.22);
-      drawBolt(c, a.x1, a.y1, a.x2, a.y2);
-    }
-    c.restore();
-  }
+  renderArcs(c, arcs, drawBolt);
+  renderParticles(c, particles);
+  renderBalls(c, balls);
 
-  for (const p of particles) {
-    c.globalAlpha = Math.max(0, p.life / p.max);
-    c.fillStyle = p.color;
-    c.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
-  }
-  c.globalAlpha = 1;
-
-  for (const b of balls) {
-    const def = BALLS[b.type];
-    const t = b.trail;
-    c.fillStyle = def.color;
-    for (let i = 0; i < t.length - 2; i += 2) {
-      c.globalAlpha = (i / Math.max(2, t.length - 2)) * 0.7;
-      c.fillRect(t[i] - 1.2, t[i + 1] - 1.2, 2.4, 2.4);
-    }
-    c.globalAlpha = 1;
-    c.save();
-    c.shadowColor = def.color;
-    c.shadowBlur = 12;
-    c.fillStyle = def.color;
-    c.beginPath();
-    c.arc(b.x, b.y, 3.2, 0, Math.PI * 2);
-    c.fill();
-    c.restore();
-  }
-
-  // Aim preview.
   if (aim.active && aim.power > 0.06) {
-    const loaded = reload <= 0;
-    c.fillStyle = loaded ? accentRgba(1) : 'rgba(255,255,255,.35)';
-    const dots = Math.round(6 + aim.power * 12);
-    for (let i = 1; i <= dots; i++) {
-      const d = 10 + i * 9;
-      c.globalAlpha = loaded ? 1 - i / (dots + 3) : 0.3;
-      c.fillRect(player.x + Math.cos(aim.angle) * d - 1, player.y + Math.sin(aim.angle) * d - 1, 2, 2);
-    }
-    c.globalAlpha = 1;
+    renderAim(c, player.x, player.y, aim.angle, aim.power, reload <= 0, accentRgba(1));
   }
-
-  // Player: a triangle pointing wherever the next shot goes.
-  c.save();
-  c.translate(player.x, player.y);
-  c.rotate(aim.angle);
-  c.strokeStyle = accentRgba(1);
-  c.lineWidth = 1.7;
-  c.shadowColor = accentRgba(0.9);
-  c.shadowBlur = 9;
-  c.beginPath();
-  c.moveTo(6.5, 0);
-  c.lineTo(-4.5, -5.2);
-  c.lineTo(-4.5, 5.2);
-  c.closePath();
-  c.stroke();
-  c.restore();
+  renderPlayer(c, player.x, player.y, aim.angle, accentRgba(1));
 
   c.font = '600 9px monospace';
   c.textAlign = 'center';

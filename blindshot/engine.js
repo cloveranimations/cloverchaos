@@ -1,296 +1,12 @@
 /*
- * BlindShot — standalone build.
+ * BlindShot — simulation. No DOM, no canvas.
  *
- * Self-contained: no bundler, no framework, no network. The CONFIG and ENGINE
- * sections are deliberately DOM-free so they mirror 1:1 onto the Roblox Luau
- * port in ../roblox/BlindShotConfig.lua — keep the two in sync when tuning.
+ * The 1:1 mirror of the Luau `Engine` module: world generation, ball
+ * physics, block damage and the light propagation all live here as plain
+ * math over typed arrays. Reads its data from config.js.
  */
 'use strict';
 
-/* ══ CONFIG ═══════════════════════════════════════════════════════════════ */
-
-const GRID_W = 100;
-const GRID_H = 100;
-const CELL = 16;
-
-const START_COL = 50;
-const START_ROW = 6;
-const START_CHAMBER = 3;
-const BEDROCK_HP = 32000;
-
-const TIERS = [
-  { name: 'Crust', hp: 3,   color: '#9aa4a8' },
-  { name: 'Moss',  hp: 6,   color: '#4ea85c' },
-  { name: 'Clay',  hp: 11,  color: '#b5a72f' },
-  { name: 'Rust',  hp: 19,  color: '#c2703a' },
-  { name: 'Ember', hp: 32,  color: '#c1402f' },
-  { name: 'Slate', hp: 52,  color: '#6c6f7a' },
-  { name: 'Void',  hp: 84,  color: '#7a3fb5' },
-  { name: 'Core',  hp: 130, color: '#c22fa8' },
-];
-/**
- * Layers radiate out from the spawn point, they are not rows. Whatever corner
- * the run drops you in, the rock touching you is layer 1 / Crust, so there is
- * never a spawn you cannot dig out of. Every LAYER_RADIUS blocks of straight-
- * line distance from spawn steps you one tier harder.
- */
-const LAYER_RADIUS = 12;
-
-/** 0-based tier index for a straight-line distance from spawn, in blocks. */
-function tierOfDist(dist) {
-  const t = Math.floor(dist / LAYER_RADIUS);
-  return t < 0 ? 0 : t >= TIERS.length ? TIERS.length - 1 : t;
-}
-
-/** The number the HUD shows: layer 1 is the spawn chamber. */
-function layerOfDist(dist) {
-  return tierOfDist(dist) + 1;
-}
-
-function distFrom(col, row, fromCol, fromRow) {
-  const dc = col - fromCol, dr = row - fromRow;
-  return Math.sqrt(dc * dc + dr * dr);
-}
-
-const KIND_ROCK = 0, KIND_TOKEN = 1, KIND_GOLDEN = 2, KIND_BEDROCK = 3;
-
-/** 1 in N solid blocks hides a token, before luck bonuses. */
-const TOKEN_RARITY = 18;
-/** The prize sits this far from spawn, in blocks — layers 6 through 8. */
-const GOLDEN_DIST_MIN = 70;
-const GOLDEN_DIST_MAX = 90;
-const GOLDEN_HP = 40;
-/** Distance in blocks at which the golden block starts bleeding light through fog. */
-const GOLDEN_AURA = 11;
-
-const PALETTE = {
-  bg: '#04160c',
-  unseen: '#000000',
-  player: '#e8a33d',
-  golden: '#ffd23d',
-  hud: '#4ade80',
-  branch: {
-    red: '#ef4444', orange: '#f97316', yellow: '#eab308',
-    green: '#22c55e', blue: '#38bdf8', magenta: '#e935c8',
-  },
-};
-
-const BALLS = {
-  basic: {
-    id: 'basic', name: 'Iron ball', branch: 'orange', color: '#f2a65a',
-    desc: 'No tricks. Ricochets hard and hits reliably.',
-    damageMul: 1, splashBonus: 0, pierce: false, chains: false, poisons: false,
-    revealBonus: 0, luckMul: 1, speedMul: 1, bounceBonus: 2,
-  },
-  bomb: {
-    id: 'bomb', name: 'Bomb ball', branch: 'orange', color: '#fb7a1e',
-    desc: 'Detonates on every bounce. Huge splash, slower flight.',
-    damageMul: 0.85, splashBonus: 2, pierce: false, chains: false, poisons: false,
-    revealBonus: 0, luckMul: 1, speedMul: 0.85, bounceBonus: 0,
-  },
-  lightning: {
-    id: 'lightning', name: 'Storm ball', branch: 'yellow', color: '#f4e04d',
-    desc: 'Arcs to nearby blocks on every hit. Fast, and it bounces forever.',
-    damageMul: 0.8, splashBonus: 0, pierce: false, chains: true, poisons: false,
-    revealBonus: 1, luckMul: 1, speedMul: 1.25, bounceBonus: 5,
-  },
-  poison: {
-    id: 'poison', name: 'Poison ball', branch: 'green', color: '#3ddc61',
-    desc: 'Rots blocks over time. Weak up front, brutal if you wait.',
-    damageMul: 0.6, splashBonus: 1, pierce: false, chains: false, poisons: true,
-    revealBonus: 0, luckMul: 1, speedMul: 1, bounceBonus: 2,
-  },
-  ghost: {
-    id: 'ghost', name: 'Ghost ball', branch: 'blue', color: '#5ad1f5',
-    desc: 'The only ball that tunnels instead of bouncing. Dies fast.',
-    damageMul: 0.7, splashBonus: 0, pierce: true, chains: false, poisons: false,
-    revealBonus: 1, luckMul: 1, speedMul: 1.15, bounceBonus: 0,
-  },
-  lure: {
-    id: 'lure', name: 'Lure ball', branch: 'magenta', color: '#f45ce0',
-    desc: 'Lights up the dark and shakes tokens loose.',
-    damageMul: 0.75, splashBonus: 0, pierce: false, chains: false, poisons: false,
-    revealBonus: 4, luckMul: 2.5, speedMul: 0.95, bounceBonus: 3,
-  },
-};
-const BALL_ORDER = ['basic', 'bomb', 'lightning', 'poison', 'ghost', 'lure'];
-
-/**
- * Base stats, i.e. the tree with nothing bought.
- *
- * `reload` is 5s on purpose: a shot is a decision, not a twitch. Everything
- * else — the fat bounce budget, ricochet-on-break — exists so that one shot
- * is worth the wait.
- */
-const BASE_STATS = {
-  damage: 9,
-  damageMul: 1,
-  splashRadius: 0,
-  splashFactor: 0,
-  projectiles: 1,
-  spreadAngle: 0.16,
-  bounces: 16,
-  speed: 380,
-  lifetime: 10,
-  reload: 5,
-  chainTargets: 2,
-  chainRange: 5,
-  chainDamage: 0.5,
-  poisonBase: 0,
-  poisonDps: 2,
-  poisonTime: 3,
-  /** Generations of onward infection. 0 = rot never leaves the block it killed. */
-  poisonSpread: 0,
-  revealRadius: 2.6,
-  luck: 1,
-  compass: 0,
-};
-
-const TECH = [
-  { id: 'core', name: 'Slingshot', desc: 'Pull back, let go, listen for the crack.',
-    branch: 'green', col: 0, row: 0, cost: 0, requires: [], icon: 'core', shape: 'circle',
-    apply: () => {} },
-
-  // ── RED · Force ──────────────────────────────────────────────────────────
-  { id: 'r1', name: 'Honed Tip', desc: '+3 damage on every impact.',
-    branch: 'red', col: -1, row: 0, cost: 1, requires: ['core'], icon: 'sword', shape: 'square',
-    apply: (s) => { s.damage += 3; } },
-  { id: 'r2', name: 'Heavy Shot', desc: '+6 damage. The ball hits like a hammer.',
-    branch: 'red', col: -2, row: 0, cost: 2, requires: ['r1'], icon: 'sword', shape: 'square',
-    apply: (s) => { s.damage += 6; } },
-  { id: 'r3', name: 'Crushing Blow', desc: '+10 damage.',
-    branch: 'red', col: -3, row: 0, cost: 4, requires: ['r2'], icon: 'sword', shape: 'square',
-    apply: (s) => { s.damage += 10; } },
-  { id: 'r4', name: 'Fracture', desc: 'All damage multiplied by 1.35.',
-    branch: 'red', col: -3, row: -1, cost: 5, requires: ['r3'], icon: 'spread', shape: 'square',
-    apply: (s) => { s.damageMul *= 1.35; } },
-  { id: 'r5', name: 'Overload', desc: '+18 damage, but shots fly 15% slower.',
-    branch: 'red', col: -4, row: 0, cost: 7, requires: ['r3'], icon: 'sword', shape: 'square',
-    apply: (s) => { s.damage += 18; s.speed *= 0.85; } },
-
-  // ── ORANGE · Impact ──────────────────────────────────────────────────────
-  { id: 'o1', name: 'Shockwave', desc: 'Impacts spill 40% damage into neighbours.',
-    branch: 'orange', col: -1, row: -1, cost: 1, requires: ['core'], icon: 'comet', shape: 'square',
-    apply: (s) => { s.splashRadius = Math.max(s.splashRadius, 1); s.splashFactor += 0.4; } },
-  { id: 'o2', name: 'Blast Ring', desc: 'Splash reaches 2 blocks out.',
-    branch: 'orange', col: -2, row: -2, cost: 2, requires: ['o1'], icon: 'comet', shape: 'square',
-    apply: (s) => { s.splashRadius = Math.max(s.splashRadius, 2); s.splashFactor += 0.05; } },
-  { id: 'o3', name: 'Detonator', desc: 'Unlocks the Bomb ball.',
-    branch: 'orange', col: -3, row: -2, cost: 4, requires: ['o2'], icon: 'ball', shape: 'circle',
-    unlocksBall: 'bomb', apply: () => {} },
-  { id: 'o4', name: 'Concussion', desc: 'Splash damage +25%.',
-    branch: 'orange', col: -2, row: -3, cost: 5, requires: ['o2'], icon: 'spread', shape: 'square',
-    apply: (s) => { s.splashFactor += 0.25; } },
-  { id: 'o5', name: 'Cataclysm', desc: 'Splash radius +1 and splash damage +30%.',
-    branch: 'orange', col: -4, row: -2, cost: 7, requires: ['o3'], icon: 'comet', shape: 'square',
-    apply: (s) => { s.splashRadius += 1; s.splashFactor += 0.3; } },
-
-  // ── YELLOW · Storm ───────────────────────────────────────────────────────
-  { id: 'y1', name: 'Static', desc: 'Cooldown 18% shorter.',
-    branch: 'yellow', col: 0, row: -1, cost: 1, requires: ['core'], icon: 'clock', shape: 'square',
-    apply: (s) => { s.reload *= 0.82; } },
-  { id: 'y2', name: 'Arc', desc: 'Unlocks the Storm ball.',
-    branch: 'yellow', col: 0, row: -2, cost: 2, requires: ['y1'], icon: 'ball', shape: 'circle',
-    unlocksBall: 'lightning', apply: () => {} },
-  { id: 'y3', name: 'Conductor', desc: 'Lightning hits +1 block and deals 20% more.',
-    branch: 'yellow', col: 0, row: -3, cost: 4, requires: ['y2'], icon: 'bolt', shape: 'square',
-    apply: (s) => { s.chainTargets += 1; s.chainDamage += 0.2; } },
-  { id: 'y4', name: 'Quickdraw', desc: 'Cooldown 28% shorter.',
-    branch: 'yellow', col: -1, row: -3, cost: 5, requires: ['y3'], icon: 'clock', shape: 'square',
-    apply: (s) => { s.reload *= 0.72; } },
-  { id: 'y5', name: 'Tempest', desc: 'Lightning hits +2 blocks at 50% more range.',
-    branch: 'yellow', col: 0, row: -4, cost: 7, requires: ['y3'], icon: 'bolt', shape: 'square',
-    apply: (s) => { s.chainTargets += 2; s.chainRange *= 1.5; } },
-  { id: 'y6', name: 'Overclock', desc: 'Cooldown 30% shorter. Roughly 2 seconds a shot.',
-    branch: 'yellow', col: -1, row: -4, cost: 9, requires: ['y4'], icon: 'clock', shape: 'square',
-    apply: (s) => { s.reload *= 0.7; } },
-
-  // ── GREEN · Toxin ────────────────────────────────────────────────────────
-  { id: 'g1', name: 'Blight', desc: 'Every impact leaves a weak rot behind.',
-    branch: 'green', col: 1, row: -1, cost: 1, requires: ['core'], icon: 'skull', shape: 'square',
-    apply: (s) => { s.poisonBase += 1; } },
-  { id: 'g2', name: 'Poison Ball', desc: 'Unlocks the Poison ball.',
-    branch: 'green', col: 2, row: -2, cost: 2, requires: ['g1'], icon: 'ball', shape: 'circle',
-    unlocksBall: 'poison', apply: () => {} },
-  { id: 'g3', name: 'Virulence', desc: 'Poison ticks for double damage.',
-    branch: 'green', col: 3, row: -2, cost: 4, requires: ['g2'], icon: 'skull', shape: 'square',
-    apply: (s) => { s.poisonDps *= 2; } },
-  { id: 'g4', name: 'Contagion', desc: 'Rot creeps 1 block onward from each block it kills, then stops.',
-    branch: 'green', col: 2, row: -3, cost: 5, requires: ['g2'], icon: 'spread', shape: 'square',
-    apply: (s) => { s.poisonSpread = Math.max(s.poisonSpread, 1); } },
-  { id: 'g5', name: 'Necrosis', desc: 'Poison lasts twice as long.',
-    branch: 'green', col: 4, row: -2, cost: 7, requires: ['g3'], icon: 'skull', shape: 'square',
-    apply: (s) => { s.poisonTime *= 2; } },
-  { id: 'g6', name: 'Pandemic', desc: 'Rot creeps 2 more blocks onward before it burns out.',
-    branch: 'green', col: 3, row: -3, cost: 9, requires: ['g4'], icon: 'spread', shape: 'square',
-    apply: (s) => { s.poisonSpread += 2; } },
-
-  // ── BLUE · Velocity ──────────────────────────────────────────────────────
-  { id: 'b1', name: 'Slick', desc: 'Shots travel 20% faster.',
-    branch: 'blue', col: 1, row: 0, cost: 1, requires: ['core'], icon: 'comet', shape: 'square',
-    apply: (s) => { s.speed *= 1.2; } },
-  { id: 'b2', name: 'Ricochet', desc: '+8 bounces and +3s of flight.',
-    branch: 'blue', col: 2, row: 0, cost: 2, requires: ['b1'], icon: 'comet', shape: 'square',
-    apply: (s) => { s.bounces += 8; s.lifetime += 3; } },
-  { id: 'b3', name: 'Phase', desc: 'Unlocks the Ghost ball.',
-    branch: 'blue', col: 3, row: 0, cost: 4, requires: ['b2'], icon: 'ball', shape: 'circle',
-    unlocksBall: 'ghost', apply: () => {} },
-  { id: 'b4', name: 'Split Shot', desc: 'Fire 2 balls per pull.',
-    branch: 'blue', col: 3, row: 1, cost: 5, requires: ['b2'], icon: 'spread', shape: 'square',
-    apply: (s) => { s.projectiles += 1; } },
-  { id: 'b5', name: 'Volley', desc: 'Fire 2 more balls, in a wider fan.',
-    branch: 'blue', col: 4, row: 0, cost: 7, requires: ['b3'], icon: 'spread', shape: 'square',
-    apply: (s) => { s.projectiles += 2; s.spreadAngle *= 1.25; } },
-
-  // ── MAGENTA · Fortune ────────────────────────────────────────────────────
-  { id: 'm1', name: 'Prospector', desc: 'Tokens turn up 50% more often.',
-    branch: 'magenta', col: 0, row: 1, cost: 1, requires: ['core'], icon: 'radar', shape: 'square',
-    apply: (s) => { s.luck += 0.5; } },
-  { id: 'm2', name: 'Lure Ball', desc: 'Unlocks the Lure ball.',
-    branch: 'magenta', col: 0, row: 2, cost: 2, requires: ['m1'], icon: 'ball', shape: 'circle',
-    unlocksBall: 'lure', apply: () => {} },
-  { id: 'm3', name: 'Deep Sight', desc: 'You see 2 blocks further into the dark.',
-    branch: 'magenta', col: 0, row: 3, cost: 4, requires: ['m2'], icon: 'radar', shape: 'square',
-    apply: (s) => { s.revealRadius += 2; } },
-  { id: 'm4', name: 'Golden Sense', desc: 'A compass finds the golden block within 25 blocks.',
-    branch: 'magenta', col: -1, row: 2, cost: 5, requires: ['m2'], icon: 'flag', shape: 'circle',
-    apply: (s) => { s.compass = Math.max(s.compass, 25); } },
-  { id: 'm5', name: 'Midas Touch', desc: 'Tokens +100%, and the compass never sleeps.',
-    branch: 'magenta', col: 1, row: 3, cost: 7, requires: ['m3'], icon: 'flag', shape: 'circle',
-    apply: (s) => { s.luck += 1; s.compass = 9999; } },
-];
-
-const TECH_BY_ID = {};
-for (const n of TECH) TECH_BY_ID[n.id] = n;
-
-function statsFor(unlocked) {
-  const s = Object.assign({}, BASE_STATS);
-  for (const id of unlocked) if (TECH_BY_ID[id]) TECH_BY_ID[id].apply(s);
-  return s;
-}
-
-function ballsFor(unlocked) {
-  const have = new Set(['basic']);
-  for (const id of unlocked) {
-    const b = TECH_BY_ID[id] && TECH_BY_ID[id].unlocksBall;
-    if (b) have.add(b);
-  }
-  return BALL_ORDER.filter((b) => have.has(b));
-}
-
-/** mulberry32 — bit-identical to the Luau mirror. */
-function makeRng(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/* ══ ENGINE ═══════════════════════════════════════════════════════════════ */
 
 const CELLS = GRID_W * GRID_H;
 const idx = (col, row) => row * GRID_W + col;
@@ -419,6 +135,135 @@ function reveal(w, cc, cr, rad) {
       if (col < 0 || col >= GRID_W) continue;
       const dc = col - cc, dr = row - cr;
       if (dc * dc + dr * dr <= r2) w.seen[idx(col, row)] = 1;
+    }
+  }
+}
+
+/* ── Lighting ─────────────────────────────────────────────────────────────
+ *
+ * A per-cell RGB light map, rebuilt from scratch each frame over the visible
+ * window only. Emissive blocks seed it, then four directional sweeps (L→R,
+ * R→L, T→B, B→T) smear each cell into its neighbour at a fixed loss per step.
+ * Two axes done in both directions is enough to look omnidirectional, and it
+ * is O(cells) with no queue — which is why it stays cheap enough to redo every
+ * frame and ports to Luau without a data-structure library.
+ *
+ * Everything here is plain arithmetic over flat arrays. No DOM, no canvas.
+ */
+
+function newLightMap() {
+  return {
+    r: new Float32Array(CELLS),
+    g: new Float32Array(CELLS),
+    b: new Float32Array(CELLS),
+    /** Window the last build covered, so the renderer can trust the bounds. */
+    c0: 0, c1: -1, r0: 0, r1: -1,
+  };
+}
+
+/** Pre-split the tier glow colours once, since the sweep runs per frame. */
+const GLOW_RGB = TIERS.map((t) => (t.glow ? hexToRgbTriple(t.glow) : null));
+const GLOW_TOKEN = hexToRgbTriple(BLOCK_TOKEN.glow);
+const GLOW_GOLDEN = hexToRgbTriple(BLOCK_GOLDEN.glow);
+
+function hexToRgbTriple(hex) {
+  return [
+    parseInt(hex.slice(1, 3), 16) / 255,
+    parseInt(hex.slice(3, 5), 16) / 255,
+    parseInt(hex.slice(5, 7), 16) / 255,
+  ];
+}
+
+/**
+ * Seeded light per unit of `power`. Above 1.0 a source reads as blown out, and
+ * because falloff eats ~20% per block, sources need to start over 1.0 for the
+ * blocks touching them to still show their true colour.
+ */
+const LIGHT_SEED = 0.5;
+
+/** Adds a point light. `power` is roughly "blocks of reach". */
+function addPointLight(lm, w, col, row, rgb, power) {
+  if (col < lm.c0 || col > lm.c1 || row < lm.r0 || row > lm.r1) return;
+  const i = idx(col, row);
+  const s = power * LIGHT_SEED;
+  if (rgb[0] * s > lm.r[i]) lm.r[i] = rgb[0] * s;
+  if (rgb[1] * s > lm.g[i]) lm.g[i] = rgb[1] * s;
+  if (rgb[2] * s > lm.b[i]) lm.b[i] = rgb[2] * s;
+}
+
+/**
+ * Rebuilds the light map across the given cell window. `extra` is a list of
+ * transient lights — balls, impact flashes, the player — as
+ * `{ col, row, rgb, power }`.
+ */
+function buildLight(lm, w, c0, c1, r0, r1, extra) {
+  // Pad the window so lights just off-screen still bleed in at the edges.
+  const PAD = 10;
+  c0 = Math.max(0, c0 - PAD); c1 = Math.min(GRID_W - 1, c1 + PAD);
+  r0 = Math.max(0, r0 - PAD); r1 = Math.min(GRID_H - 1, r1 + PAD);
+  lm.c0 = c0; lm.c1 = c1; lm.r0 = r0; lm.r1 = r1;
+
+  for (let row = r0; row <= r1; row++) {
+    const base = row * GRID_W;
+    for (let col = c0; col <= c1; col++) {
+      const i = base + col;
+      let lr = 0, lg = 0, lb = 0;
+
+      if (w.seen[i]) {
+        if (w.hp[i] <= 0) {
+          // Mined-out air keeps a dim floor so cleared rooms stay readable.
+          lr = lg = lb = LIGHT_AMBIENT;
+        } else {
+          const kind = w.kind[i];
+          let glow = null, power = 0;
+          if (kind === KIND_TOKEN) { glow = GLOW_TOKEN; power = BLOCK_TOKEN.light; }
+          else if (kind === KIND_GOLDEN) { glow = GLOW_GOLDEN; power = BLOCK_GOLDEN.light; }
+          else if (kind !== KIND_BEDROCK) {
+            const t = w.hue[i];
+            glow = GLOW_RGB[t]; power = TIERS[t].light;
+          }
+          if (glow && power > 0) {
+            const s = power * LIGHT_SEED;
+            lr = glow[0] * s; lg = glow[1] * s; lb = glow[2] * s;
+          }
+        }
+      }
+      lm.r[i] = lr; lm.g[i] = lg; lm.b[i] = lb;
+    }
+  }
+
+  if (extra) {
+    for (const e of extra) addPointLight(lm, w, e.col, e.row, e.rgb, e.power);
+  }
+
+  // Four sweeps. `fall` depends on the cell being entered: rock swallows light.
+  const R = lm.r, G = lm.g, B = lm.b;
+  const spread = (i, from) => {
+    const fall = w.hp[i] > 0 ? LIGHT_FALL_SOLID : LIGHT_FALL_AIR;
+    const nr = R[from] * fall, ng = G[from] * fall, nb = B[from] * fall;
+    if (nr > R[i]) R[i] = nr < LIGHT_CUTOFF ? R[i] : nr;
+    if (ng > G[i]) G[i] = ng < LIGHT_CUTOFF ? G[i] : ng;
+    if (nb > B[i]) B[i] = nb < LIGHT_CUTOFF ? B[i] : nb;
+  };
+
+  for (let row = r0; row <= r1; row++) {
+    const base = row * GRID_W;
+    for (let col = c0 + 1; col <= c1; col++) spread(base + col, base + col - 1);
+    for (let col = c1 - 1; col >= c0; col--) spread(base + col, base + col + 1);
+  }
+  for (let col = c0; col <= c1; col++) {
+    for (let row = r0 + 1; row <= r1; row++) spread(row * GRID_W + col, (row - 1) * GRID_W + col);
+    for (let row = r1 - 1; row >= r0; row--) spread(row * GRID_W + col, (row + 1) * GRID_W + col);
+  }
+
+  // Fog wins over light. The sweeps happily smear illumination into cells the
+  // player has never uncovered; without this, every lamp would quietly outline
+  // the unexplored map around it.
+  for (let row = r0; row <= r1; row++) {
+    const base = row * GRID_W;
+    for (let col = c0; col <= c1; col++) {
+      const i = base + col;
+      if (!w.seen[i]) { R[i] = 0; G[i] = 0; B[i] = 0; }
     }
   }
 }

@@ -17,8 +17,23 @@ python3 -m http.server 8899
 # → http://localhost:8899
 ```
 
-To deploy, upload the three files (`index.html`, `game.js`, `ui.js`) to any
-static host. Nothing else is required.
+To deploy, upload `index.html` and the four scripts to any static host.
+Nothing else is required.
+
+## Files
+
+Load order matters, and it is also the porting boundary:
+
+| File | Contains | Ports to Luau |
+| --- | --- | --- |
+| `config.js` | Pure data: blocks, balls, tech tree, tuning | yes, as-is |
+| `engine.js` | Pure sim: worldgen, physics, damage, lighting | yes, as-is |
+| `render.js` | Canvas drawing | no — rewrite |
+| `ui.js` | DOM, input, HUD, tech tree, frame loop | no — rewrite |
+
+`config.js` and `engine.js` never touch `document`, `window` or a canvas. That
+split is deliberate: a Roblox build keeps the first two verbatim and replaces
+only the last two.
 
 ## Controls
 
@@ -43,6 +58,16 @@ static host. Nothing else is required.
   is always layer 1 / Crust, and every 12 blocks of straight-line distance steps
   one tier harder, out to layer 8 / Core. There is no such thing as a spawn you
   cannot dig out of, and the HUD reads `FROM SPAWN` in blocks rather than depth.
+- **Blocks are lit, not shaded.** Every block's on-screen colour is its own
+  colour multiplied by the light reaching it, so unlit rock is genuinely
+  invisible rather than merely dim. Emissive blocks flood a per-cell RGB light
+  map, four directional sweeps smear it outward — losing ~18% per block of air
+  and ~42% per block of rock — and the same map is drawn a second time,
+  smoothed and additive, to bleed the glow past hard block edges. Balls and the
+  player are moving lamps, so a shot lights its own way into the dark.
+- **Redesigning blocks is a one-table job.** `TIERS` in `config.js` holds a
+  `color`, a `glow` and a `light` reach per layer; `BLOCK_TOKEN` and
+  `BLOCK_GOLDEN` are the same shape. Nothing else needs touching.
 - **Fog of war.** You only see what an impact has revealed. The minimap shows
   discovered rock, carved-out space, your heading, and a very faint ring at the
   distance where the golden block can spawn.
@@ -63,8 +88,8 @@ all**, so on an iPhone the `VIB` button reports that instead of pretending.
 
 ## Roblox parity
 
-`game.js` is split into a `CONFIG` and an `ENGINE` section, both DOM-free, so
-they mirror 1:1 onto `../roblox/BlindShotConfig.lua`. The tech tree, base
-stats, ball definitions and tuning constants are kept in sync between the two,
+`config.js` and `engine.js` are DOM-free, so they mirror 1:1 onto
+`../roblox/BlindShotConfig.lua`. The tech tree, base stats, ball definitions,
+block table and lighting constants are kept in sync between the two,
 and the `mulberry32` RNG is bit-identical, so the same seed generates the same
 map on both platforms. When you tune one, tune the other.

@@ -42,21 +42,52 @@ export type Tier = {
 	name: string,
 	--- Base durability of a block in this tier. Each block rolls ±30%.
 	hp: number,
+	--- The block's own colour, at full light. Near-primary on purpose: the
+	--- renderer multiplies it by the light level, so a muted base turns to mud.
 	color: Color3,
+	--- Colour of the light this block radiates, or nil for inert rock.
+	glow: Color3?,
+	--- How far that glow carries, in blocks.
+	light: number,
 }
 
 --- 8 tiers as rings around the spawn point. Layer 1 is whatever you spawned in,
 --- so there is no such thing as a spawn you cannot dig out of.
+--- This is the table to edit when redesigning blocks; nothing else changes.
 Config.TIERS: { Tier } = {
-	{ name = "Crust", hp = 3, color = Color3.fromHex("#9aa4a8") },
-	{ name = "Moss", hp = 6, color = Color3.fromHex("#4ea85c") },
-	{ name = "Clay", hp = 11, color = Color3.fromHex("#b5a72f") },
-	{ name = "Rust", hp = 19, color = Color3.fromHex("#c2703a") },
-	{ name = "Ember", hp = 32, color = Color3.fromHex("#c1402f") },
-	{ name = "Slate", hp = 52, color = Color3.fromHex("#6c6f7a") },
-	{ name = "Void", hp = 84, color = Color3.fromHex("#7a3fb5") },
-	{ name = "Core", hp = 130, color = Color3.fromHex("#c22fa8") },
+	{ name = "Crust", hp = 3, color = Color3.fromHex("#c8ccd0"), glow = Color3.fromHex("#ffffff"), light = 2.3 },
+	{ name = "Moss", hp = 6, color = Color3.fromHex("#00c000"), glow = Color3.fromHex("#00c000"), light = 2.0 },
+	{ name = "Clay", hp = 11, color = Color3.fromHex("#a0b000"), glow = Color3.fromHex("#a0b000"), light = 1.9 },
+	{ name = "Rust", hp = 19, color = Color3.fromHex("#d05000"), glow = Color3.fromHex("#d05000"), light = 1.9 },
+	{ name = "Ember", hp = 32, color = Color3.fromHex("#e00010"), glow = Color3.fromHex("#e00010"), light = 2.0 },
+	{ name = "Slate", hp = 52, color = Color3.fromHex("#909aa0"), glow = Color3.fromHex("#c0ccd4"), light = 1.7 },
+	{ name = "Void", hp = 84, color = Color3.fromHex("#ff00ff"), glow = Color3.fromHex("#ff00ff"), light = 2.6 },
+	{ name = "Core", hp = 130, color = Color3.fromHex("#c08000"), glow = Color3.fromHex("#c08000"), light = 2.2 },
 }
+
+--- Emissive specials, same shape as a tier row so rendering treats them alike.
+Config.BLOCK_TOKEN = { color = Color3.fromHex("#ffffff"), glow = Color3.fromHex("#ffffff"), light = 2.8 }
+Config.BLOCK_GOLDEN = { color = Color3.fromHex("#ffd23d"), glow = Color3.fromHex("#ffd23d"), light = 3.4 }
+Config.BLOCK_BEDROCK = { color = Color3.fromHex("#20282c"), glow = nil, light = 0 }
+
+-- ─── Lighting ────────────────────────────────────────────────────────────────
+-- Terraria-style flood light: emissive cells seed a per-cell RGB map, then four
+-- directional sweeps smear it outward, losing a fixed fraction per step. Air
+-- carries light much further than rock, which is what carves soft pools around
+-- a lamp instead of a flat disc. Pure arithmetic over flat arrays — the web
+-- build's `buildLight` transcribes directly.
+
+--- Light kept per block travelled through open space.
+Config.LIGHT_FALL_AIR = 0.82
+--- Light kept per block travelled through solid rock.
+Config.LIGHT_FALL_SOLID = 0.58
+--- Floor light every explored cell gets, so mined-out rooms never go pitch black.
+Config.LIGHT_AMBIENT = 0.04
+--- Light below this is clamped to nothing, which keeps the sweeps cheap.
+Config.LIGHT_CUTOFF = 0.015
+--- Seeded light per unit of a source's `light`. Sources start above 1.0 so the
+--- blocks touching them still show their true colour after falloff.
+Config.LIGHT_SEED = 0.5
 
 --- Blocks of straight-line distance from spawn per tier step.
 Config.LAYER_RADIUS = 12
@@ -98,8 +129,10 @@ end
 -- ─── Palette ─────────────────────────────────────────────────────────────────
 
 Config.PALETTE = {
-	bg = Color3.fromHex("#04160c"),
-	unseen = Color3.fromHex("#000000"),
+	--- Open, lit-but-empty space.
+	bg = Color3.fromHex("#102018"),
+	--- Unlit void — what a cell with no light at all falls back to.
+	unseen = Color3.fromHex("#001008"),
 	player = Color3.fromHex("#e8a33d"),
 	aim = Color3.fromHex("#ffffff"),
 	token = Color3.fromHex("#ffffff"),
@@ -243,8 +276,6 @@ export type TechNode = {
 	cost: number,
 	requires: { string },
 	icon: string,
-	--- "circle" nodes unlock a ball or ability; "square" nodes are passive stats.
-	shape: string,
 	unlocksBall: string?,
 	apply: (Stats) -> (),
 }
@@ -252,181 +283,181 @@ export type TechNode = {
 Config.TECH: { TechNode } = {
 	{
 		id = "core", name = "Slingshot", desc = "Pull back, let go, listen for the crack.",
-		branch = "green", col = 0, row = 0, cost = 0, requires = {}, icon = "core", shape = "circle",
+		branch = "green", col = 0, row = 0, cost = 0, requires = {}, icon = "core",
 		apply = function(_s) end,
 	},
 
 	-- ── RED · Force ──────────────────────────────────────────────────────────
 	{
 		id = "r1", name = "Honed Tip", desc = "+3 damage on every impact.",
-		branch = "red", col = -1, row = 0, cost = 1, requires = { "core" }, icon = "sword", shape = "square",
+		branch = "red", col = -1, row = 0, cost = 1, requires = { "core" }, icon = "sword",
 		apply = function(s) s.damage += 3 end,
 	},
 	{
 		id = "r2", name = "Heavy Shot", desc = "+6 damage. The ball hits like a hammer.",
-		branch = "red", col = -2, row = 0, cost = 2, requires = { "r1" }, icon = "sword", shape = "square",
+		branch = "red", col = -2, row = 0, cost = 2, requires = { "r1" }, icon = "sword",
 		apply = function(s) s.damage += 6 end,
 	},
 	{
 		id = "r3", name = "Crushing Blow", desc = "+10 damage.",
-		branch = "red", col = -3, row = 0, cost = 4, requires = { "r2" }, icon = "sword", shape = "square",
+		branch = "red", col = -3, row = 0, cost = 4, requires = { "r2" }, icon = "sword",
 		apply = function(s) s.damage += 10 end,
 	},
 	{
 		id = "r4", name = "Fracture", desc = "All damage multiplied by 1.35.",
-		branch = "red", col = -3, row = -1, cost = 5, requires = { "r3" }, icon = "spread", shape = "square",
+		branch = "red", col = -3, row = -1, cost = 5, requires = { "r3" }, icon = "spread",
 		apply = function(s) s.damageMul *= 1.35 end,
 	},
 	{
 		id = "r5", name = "Overload", desc = "+18 damage, but shots fly 15% slower.",
-		branch = "red", col = -4, row = 0, cost = 7, requires = { "r3" }, icon = "sword", shape = "square",
+		branch = "red", col = -4, row = 0, cost = 7, requires = { "r3" }, icon = "sword",
 		apply = function(s) s.damage += 18 s.speed *= 0.85 end,
 	},
 
 	-- ── ORANGE · Impact ──────────────────────────────────────────────────────
 	{
 		id = "o1", name = "Shockwave", desc = "Impacts spill 40% damage into neighbours.",
-		branch = "orange", col = -1, row = -1, cost = 1, requires = { "core" }, icon = "comet", shape = "square",
+		branch = "orange", col = -1, row = -1, cost = 1, requires = { "core" }, icon = "comet",
 		apply = function(s) s.splashRadius = math.max(s.splashRadius, 1) s.splashFactor += 0.4 end,
 	},
 	{
 		id = "o2", name = "Blast Ring", desc = "Splash reaches 2 blocks out.",
-		branch = "orange", col = -2, row = -2, cost = 2, requires = { "o1" }, icon = "comet", shape = "square",
+		branch = "orange", col = -2, row = -2, cost = 2, requires = { "o1" }, icon = "comet",
 		apply = function(s) s.splashRadius = math.max(s.splashRadius, 2) s.splashFactor += 0.05 end,
 	},
 	{
 		id = "o3", name = "Detonator", desc = "Unlocks the Bomb ball.",
-		branch = "orange", col = -3, row = -2, cost = 4, requires = { "o2" }, icon = "ball", shape = "circle",
+		branch = "orange", col = -3, row = -2, cost = 4, requires = { "o2" }, icon = "ball",
 		unlocksBall = "bomb", apply = function(_s) end,
 	},
 	{
 		id = "o4", name = "Concussion", desc = "Splash damage +25%.",
-		branch = "orange", col = -2, row = -3, cost = 5, requires = { "o2" }, icon = "spread", shape = "square",
+		branch = "orange", col = -2, row = -3, cost = 5, requires = { "o2" }, icon = "spread",
 		apply = function(s) s.splashFactor += 0.25 end,
 	},
 	{
 		id = "o5", name = "Cataclysm", desc = "Splash radius +1 and splash damage +30%.",
-		branch = "orange", col = -4, row = -2, cost = 7, requires = { "o3" }, icon = "comet", shape = "square",
+		branch = "orange", col = -4, row = -2, cost = 7, requires = { "o3" }, icon = "comet",
 		apply = function(s) s.splashRadius += 1 s.splashFactor += 0.3 end,
 	},
 
 	-- ── YELLOW · Storm ───────────────────────────────────────────────────────
 	{
 		id = "y1", name = "Static", desc = "Cooldown 18% shorter.",
-		branch = "yellow", col = 0, row = -1, cost = 1, requires = { "core" }, icon = "clock", shape = "square",
+		branch = "yellow", col = 0, row = -1, cost = 1, requires = { "core" }, icon = "clock",
 		apply = function(s) s.reload *= 0.82 end,
 	},
 	{
 		id = "y2", name = "Arc", desc = "Unlocks the Storm ball.",
-		branch = "yellow", col = 0, row = -2, cost = 2, requires = { "y1" }, icon = "ball", shape = "circle",
+		branch = "yellow", col = 0, row = -2, cost = 2, requires = { "y1" }, icon = "ball",
 		unlocksBall = "lightning", apply = function(_s) end,
 	},
 	{
 		id = "y3", name = "Conductor", desc = "Lightning hits +1 block and deals 20% more.",
-		branch = "yellow", col = 0, row = -3, cost = 4, requires = { "y2" }, icon = "bolt", shape = "square",
+		branch = "yellow", col = 0, row = -3, cost = 4, requires = { "y2" }, icon = "bolt",
 		apply = function(s) s.chainTargets += 1 s.chainDamage += 0.2 end,
 	},
 	{
 		id = "y4", name = "Quickdraw", desc = "Cooldown 28% shorter.",
-		branch = "yellow", col = -1, row = -3, cost = 5, requires = { "y3" }, icon = "clock", shape = "square",
+		branch = "yellow", col = -1, row = -3, cost = 5, requires = { "y3" }, icon = "clock",
 		apply = function(s) s.reload *= 0.72 end,
 	},
 	{
 		id = "y5", name = "Tempest", desc = "Lightning hits +2 blocks at 50% more range.",
-		branch = "yellow", col = 0, row = -4, cost = 7, requires = { "y3" }, icon = "bolt", shape = "square",
+		branch = "yellow", col = 0, row = -4, cost = 7, requires = { "y3" }, icon = "bolt",
 		apply = function(s) s.chainTargets += 2 s.chainRange *= 1.5 end,
 	},
 
 	{
 		id = "y6", name = "Overclock", desc = "Cooldown 30% shorter. Roughly 2 seconds a shot.",
-		branch = "yellow", col = -1, row = -4, cost = 9, requires = { "y4" }, icon = "clock", shape = "square",
+		branch = "yellow", col = -1, row = -4, cost = 9, requires = { "y4" }, icon = "clock",
 		apply = function(s) s.reload *= 0.7 end,
 	},
 
 	-- ── GREEN · Toxin ────────────────────────────────────────────────────────
 	{
 		id = "g1", name = "Blight", desc = "Every impact leaves a weak rot behind.",
-		branch = "green", col = 1, row = -1, cost = 1, requires = { "core" }, icon = "skull", shape = "square",
+		branch = "green", col = 1, row = -1, cost = 1, requires = { "core" }, icon = "skull",
 		apply = function(s) s.poisonBase += 1 end,
 	},
 	{
 		id = "g2", name = "Poison Ball", desc = "Unlocks the Poison ball.",
-		branch = "green", col = 2, row = -2, cost = 2, requires = { "g1" }, icon = "ball", shape = "circle",
+		branch = "green", col = 2, row = -2, cost = 2, requires = { "g1" }, icon = "ball",
 		unlocksBall = "poison", apply = function(_s) end,
 	},
 	{
 		id = "g3", name = "Virulence", desc = "Poison ticks for double damage.",
-		branch = "green", col = 3, row = -2, cost = 4, requires = { "g2" }, icon = "skull", shape = "square",
+		branch = "green", col = 3, row = -2, cost = 4, requires = { "g2" }, icon = "skull",
 		apply = function(s) s.poisonDps *= 2 end,
 	},
 	{
 		id = "g4", name = "Contagion", desc = "Rot creeps 1 block onward from each block it kills, then stops.",
-		branch = "green", col = 2, row = -3, cost = 5, requires = { "g2" }, icon = "spread", shape = "square",
+		branch = "green", col = 2, row = -3, cost = 5, requires = { "g2" }, icon = "spread",
 		apply = function(s) s.poisonSpread = math.max(s.poisonSpread, 1) end,
 	},
 	{
 		id = "g5", name = "Necrosis", desc = "Poison lasts twice as long.",
-		branch = "green", col = 4, row = -2, cost = 7, requires = { "g3" }, icon = "skull", shape = "square",
+		branch = "green", col = 4, row = -2, cost = 7, requires = { "g3" }, icon = "skull",
 		apply = function(s) s.poisonTime *= 2 end,
 	},
 
 	{
 		id = "g6", name = "Pandemic", desc = "Rot creeps 2 more blocks onward before it burns out.",
-		branch = "green", col = 3, row = -3, cost = 9, requires = { "g4" }, icon = "spread", shape = "square",
+		branch = "green", col = 3, row = -3, cost = 9, requires = { "g4" }, icon = "spread",
 		apply = function(s) s.poisonSpread += 2 end,
 	},
 
 	-- ── BLUE · Velocity ──────────────────────────────────────────────────────
 	{
 		id = "b1", name = "Slick", desc = "Shots travel 20% faster.",
-		branch = "blue", col = 1, row = 0, cost = 1, requires = { "core" }, icon = "comet", shape = "square",
+		branch = "blue", col = 1, row = 0, cost = 1, requires = { "core" }, icon = "comet",
 		apply = function(s) s.speed *= 1.2 end,
 	},
 	{
 		id = "b2", name = "Ricochet", desc = "+8 bounces and +3s of flight.",
-		branch = "blue", col = 2, row = 0, cost = 2, requires = { "b1" }, icon = "comet", shape = "square",
+		branch = "blue", col = 2, row = 0, cost = 2, requires = { "b1" }, icon = "comet",
 		apply = function(s) s.bounces += 8 s.lifetime += 3 end,
 	},
 	{
 		id = "b3", name = "Phase", desc = "Unlocks the Ghost ball.",
-		branch = "blue", col = 3, row = 0, cost = 4, requires = { "b2" }, icon = "ball", shape = "circle",
+		branch = "blue", col = 3, row = 0, cost = 4, requires = { "b2" }, icon = "ball",
 		unlocksBall = "ghost", apply = function(_s) end,
 	},
 	{
 		id = "b4", name = "Split Shot", desc = "Fire 2 balls per pull.",
-		branch = "blue", col = 3, row = 1, cost = 5, requires = { "b2" }, icon = "spread", shape = "square",
+		branch = "blue", col = 3, row = 1, cost = 5, requires = { "b2" }, icon = "spread",
 		apply = function(s) s.projectiles += 1 end,
 	},
 	{
 		id = "b5", name = "Volley", desc = "Fire 2 more balls, in a wider fan.",
-		branch = "blue", col = 4, row = 0, cost = 7, requires = { "b3" }, icon = "spread", shape = "square",
+		branch = "blue", col = 4, row = 0, cost = 7, requires = { "b3" }, icon = "spread",
 		apply = function(s) s.projectiles += 2 s.spreadAngle *= 1.25 end,
 	},
 
 	-- ── MAGENTA · Fortune ────────────────────────────────────────────────────
 	{
 		id = "m1", name = "Prospector", desc = "Tokens turn up 50% more often.",
-		branch = "magenta", col = 0, row = 1, cost = 1, requires = { "core" }, icon = "radar", shape = "square",
+		branch = "magenta", col = 0, row = 1, cost = 1, requires = { "core" }, icon = "radar",
 		apply = function(s) s.luck += 0.5 end,
 	},
 	{
 		id = "m2", name = "Lure Ball", desc = "Unlocks the Lure ball.",
-		branch = "magenta", col = 0, row = 2, cost = 2, requires = { "m1" }, icon = "ball", shape = "circle",
+		branch = "magenta", col = 0, row = 2, cost = 2, requires = { "m1" }, icon = "ball",
 		unlocksBall = "lure", apply = function(_s) end,
 	},
 	{
 		id = "m3", name = "Deep Sight", desc = "You see 2 blocks further into the dark.",
-		branch = "magenta", col = 0, row = 3, cost = 4, requires = { "m2" }, icon = "radar", shape = "square",
+		branch = "magenta", col = 0, row = 3, cost = 4, requires = { "m2" }, icon = "radar",
 		apply = function(s) s.revealRadius += 2 end,
 	},
 	{
 		id = "m4", name = "Golden Sense", desc = "A compass finds the golden block within 25 blocks.",
-		branch = "magenta", col = -1, row = 2, cost = 5, requires = { "m2" }, icon = "flag", shape = "circle",
+		branch = "magenta", col = -1, row = 2, cost = 5, requires = { "m2" }, icon = "flag",
 		apply = function(s) s.compass = math.max(s.compass, 25) end,
 	},
 	{
 		id = "m5", name = "Midas Touch", desc = "Tokens +100%, and the compass never sleeps.",
-		branch = "magenta", col = 1, row = 3, cost = 7, requires = { "m3" }, icon = "flag", shape = "circle",
+		branch = "magenta", col = 1, row = 3, cost = 7, requires = { "m3" }, icon = "flag",
 		apply = function(s) s.luck += 1 s.compass = 9999 end,
 	},
 }

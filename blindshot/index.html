@@ -145,7 +145,12 @@
     flex-direction: column; background: #030d07;
   }
   .sheet.open { display: flex; }
-  #tree { z-index: 40; }
+  /* The tree sits over the world rather than replacing it — the cave stays
+     visible, blurred back, the way the deck does in the reference. */
+  #tree {
+    z-index: 40; background: rgba(3, 10, 6, .82);
+    backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  }
   #card { z-index: 50; align-items: center; justify-content: center; padding: 18px; cursor: pointer; }
   #win  { z-index: 60; align-items: center; justify-content: center; padding: 22px; text-align: center; }
 
@@ -161,24 +166,65 @@
   #treePan { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
   #treeSvg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 
+  /* Node shape carries ownership: a circle is something you have not bought,
+     a rounded square is something you have. Nothing else encodes it. */
   .node {
     position: absolute; width: 46px; height: 46px; padding: 0;
     display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,.85); cursor: pointer;
-    border: 2px solid var(--accent);
-    transition: opacity 200ms, background-color var(--fade);
+    border: 3px solid #8b969b; color: #8b969b;
+    border-radius: 50%;
+    transition: opacity 160ms, border-radius 160ms, background-color 160ms, border-color 160ms, color 160ms;
   }
-  .node.circle { border-radius: 0; }
-  .node.locked { opacity: .2; }
-  .node.short  { opacity: .5; }
-  .node.owned  { background: rgba(255,255,255,.12); }
-  .node.sel    { box-shadow: inset 0 0 0 2px var(--accent), 0 0 12px -3px var(--accent); }
+  /* Reachable but unbought: the branch colour arrives, the circle stays. */
+  .node.ready { border-color: var(--nc); color: var(--nc); }
+  .node.owned {
+    border-radius: 8px;
+    border-color: var(--nc); color: var(--nc);
+    background: color-mix(in srgb, var(--nc) 26%, #0a0d0b);
+  }
+  /* Too far to matter yet — collapses to a dim dotted pip. */
+  .node.far {
+    width: 18px; height: 18px; margin: 14px;
+    border-style: dotted; border-width: 2px;
+    opacity: .45; background: transparent;
+  }
+  .node.far svg, .node.far .cost, .node.far .plus { display: none; }
+  .node.far::after {
+    content: ''; width: 4px; height: 4px; background: currentColor;
+  }
+  .node.short { opacity: .62; }
+  .node.sel { box-shadow: 0 0 0 1px var(--nc), 0 0 14px -2px var(--nc); }
+  /* The buy affordance, straight off the node. */
+  .node .plus {
+    position: absolute; top: -9px; right: -7px;
+    font-size: 13px; line-height: 1; color: var(--nc);
+  }
   .node .cost {
     position: absolute; bottom: -8px; right: -8px;
     font-size: 9px; padding: 1px 4px; background: #04160c;
     border: 2px solid currentColor; letter-spacing: 0;
   }
-  .node .tick { position: absolute; top: -7px; right: -7px; font-size: 11px; }
+
+  /* ── Node card ───────────────────────────────────────────────────────────
+     Floats above the selected node. Deals in tilted, then settles level. */
+  #nodeCard {
+    position: absolute; z-index: 3; pointer-events: none;
+    min-width: 190px; max-width: 280px; padding: 10px 18px 12px;
+    background: #050706; border: 3px solid var(--nc);
+    text-align: center; transform-origin: 50% 120%;
+    box-shadow: 0 5px 0 -1px color-mix(in srgb, var(--nc) 55%, transparent);
+    animation: dealIn 260ms cubic-bezier(.2,.9,.3,1.05);
+  }
+  @keyframes dealIn {
+    0%   { transform: rotate(-5.5deg) translateY(10px); opacity: 0; }
+    60%  { transform: rotate(2deg)    translateY(0); opacity: 1; }
+    100% { transform: rotate(0deg)    translateY(0); opacity: 1; }
+  }
+  #nodeCard .k { font-size: 11px; letter-spacing: 1px; color: var(--nc); }
+  #nodeCard .v { font-size: 21px; color: #fff; margin: 6px 0 2px; white-space: nowrap; }
+  #nodeCard .s { font-size: 11px; color: #7f8c85; }
+  #nodeCard .c { font-size: 15px; color: #fff; margin-top: 7px; }
 
   #detail {
     border-top: 4px solid var(--accent); padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
@@ -258,7 +304,7 @@
         <button id="treeClose">CLOSE</button>
       </div>
     </div>
-    <div id="treeView"><svg id="treeSvg"></svg><div id="treePan"></div></div>
+    <div id="treeView"><svg id="treeSvg"></svg><div id="treePan"><div id="nodeCard"></div></div></div>
     <div id="detail">
       <div class="txt">
         <div class="nm" id="dNm">Slingshot</div>
@@ -289,7 +335,10 @@
   </div>
 </div>
 
-<script src="game.js"></script>
+<!-- config + engine are DOM-free and port 1:1 to Luau; render + ui do not. -->
+<script src="config.js"></script>
+<script src="engine.js"></script>
+<script src="render.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>
