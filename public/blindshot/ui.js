@@ -93,7 +93,10 @@ const player = {
   col: START_COL, row: START_ROW,
   x: 0, y: 0, vx: 0, vy: 0, ix: 0, iy: 0, face: Math.PI / 2,
 };
-const cam = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
+const cam = { x: 0, y: 0, zoom: 1, targetZoom: 1, manualZoom: 1 };
+const pinch = { scale: 1, baseDist: 0, active: false };
+const ZOOM_SPEED = 0.05;           // per wheel tick or pinch delta
+const ZOOM_MIN = 0.3, ZOOM_MAX = 2;
 const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0, anchorWorldX: 0, anchorWorldY: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
 const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false, ix: 0, iy: 0 };
@@ -711,6 +714,73 @@ function endPointer(e) {
 el.cv.addEventListener('pointerup', endPointer);
 el.cv.addEventListener('pointercancel', endPointer);
 
+/* ── Zoom ──────────────────────────────────────────────────────────────────
+ *
+ * Desktop: scroll wheel for persistent zoom, clamped to [0.3, 2].
+ * Mobile: two-finger pinch, resets to 1:1 when let go.
+ */
+
+// Track touch points for pinch detection
+const activeTouches = new Map();
+
+el.cv.addEventListener('pointerdown', (e) => {
+  activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  updatePinchZoom();
+}, true);
+
+el.cv.addEventListener('pointermove', (e) => {
+  if (activeTouches.has(e.pointerId)) {
+    activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    updatePinchZoom();
+  }
+}, true);
+
+el.cv.addEventListener('pointerup', (e) => {
+  activeTouches.delete(e.pointerId);
+  if (activeTouches.size === 0) {
+    // Reset pinch zoom when all fingers lifted
+    pinch.active = false;
+    pinch.scale = 1;
+  }
+}, true);
+
+el.cv.addEventListener('pointercancel', (e) => {
+  activeTouches.delete(e.pointerId);
+  if (activeTouches.size === 0) {
+    pinch.active = false;
+    pinch.scale = 1;
+  }
+}, true);
+
+function updatePinchZoom() {
+  if (activeTouches.size !== 2) {
+    if (pinch.active) pinch.scale = 1;
+    pinch.active = false;
+    return;
+  }
+
+  const touches = Array.from(activeTouches.values());
+  const dx = touches[1].x - touches[0].x;
+  const dy = touches[1].y - touches[0].y;
+  const dist = Math.hypot(dx, dy);
+
+  if (!pinch.active) {
+    pinch.baseDist = dist;
+    pinch.active = true;
+    pinch.scale = 1;
+    return;
+  }
+
+  pinch.scale = Math.max(0.5, Math.min(2, dist / pinch.baseDist));
+}
+
+el.cv.addEventListener('wheel', (e) => {
+  if (paused()) return;
+  e.preventDefault();
+  const delta = Math.sign(e.deltaY);
+  cam.manualZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cam.manualZoom - delta * ZOOM_SPEED));
+}, { passive: false });
+
 /* ── Keyboard ──────────────────────────────────────────────────────────────
  *
  * WASD and the arrow keys, held rather than tapped. They produce the same
@@ -1180,7 +1250,10 @@ function update(dt, now) {
   // Fit on the tighter axis. Pulling out is quicker than easing back in, so a
   // fast shot stays in view instead of outrunning the zoom.
   const fit = Math.min(viewW / (maxX - minX), viewH / (maxY - minY));
-  cam.targetZoom = Math.max(MIN_ZOOM, Math.min(1, fit));
+  const frameZoom = Math.max(MIN_ZOOM, Math.min(1, fit));
+  // Manual zoom persists; pinch zoom resets to 1 when fingers released.
+  const targetZoom = frameZoom * cam.manualZoom * pinch.scale;
+  cam.targetZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, targetZoom));
   const zRate = cam.targetZoom < cam.zoom ? 9 : 3.5;
   cam.zoom += (cam.targetZoom - cam.zoom) * (1 - Math.exp(-zRate * dt));
 
