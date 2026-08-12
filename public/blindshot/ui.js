@@ -86,7 +86,7 @@ const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
 const JOYSTICK_DEADZONE = 15;
-const JOYSTICK_MOVE_SPEED = 1;
+const JOYSTICK_MOVE_SPEED = 50;
 let particles = [], arcs = [], texts = [], blockFx = [];
 let reload = 0, shake = 0;
 /** Furthest straight-line distance from spawn reached, in blocks. Drives the
@@ -820,26 +820,20 @@ function update(dt, now) {
   if (player.vx !== 0 || player.vy !== 0) {
     const moveDir = Math.atan2(player.vy, player.vx);
     const dx = Math.cos(moveDir), dy = Math.sin(moveDir);
-    const distX = Math.abs(player.vx * dt / CELL);
-    const distY = Math.abs(player.vy * dt / CELL);
-    const moveSteps = Math.max(distX, distY);
-
-    if (moveSteps >= 0.5) {
-      let tryCol = player.col, tryRow = player.row;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        tryCol += dx > 0 ? 1 : -1;
-      } else {
-        tryRow += dy > 0 ? 1 : -1;
-      }
-      if (tryCol >= 0 && tryCol < GRID_W && tryRow >= 0 && tryRow < GRID_H) {
-        const i = tryRow * GRID_W + tryCol;
-        if (world.hp[i] <= 0) {
-          player.col = tryCol; player.row = tryRow;
-          player.x = (tryCol + 0.5) * CELL;
-          player.y = (tryRow + 0.5) * CELL;
-          reach = Math.max(reach, distFromSpawn(tryCol, tryRow));
-          miniDirty = true;
-        }
+    let tryCol = player.col, tryRow = player.row;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      tryCol += dx > 0 ? 1 : -1;
+    } else {
+      tryRow += dy > 0 ? 1 : -1;
+    }
+    if (tryCol >= 0 && tryCol < GRID_W && tryRow >= 0 && tryRow < GRID_H) {
+      const i = tryRow * GRID_W + tryCol;
+      if (world.hp[i] <= 0) {
+        player.col = tryCol; player.row = tryRow;
+        player.x = (tryCol + 0.5) * CELL;
+        player.y = (tryRow + 0.5) * CELL;
+        reach = Math.max(reach, distFromSpawn(tryCol, tryRow));
+        miniDirty = true;
       }
     }
   }
