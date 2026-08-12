@@ -1031,40 +1031,50 @@ function update(dt, now) {
   shake *= Math.pow(0.0015, dt);
   if (shake < 0.15) shake = 0;
 
-  // Calculate bounding box of all balls and the player
-  let minX = player.x, maxX = player.x, minY = player.y, maxY = player.y;
-  const BALL_RADIUS = 3.4; // From render.js
+  // The frame holds the triangle and every ball in flight at once, pulling out
+  // to fit them and easing back to 1:1 as they die off.
+  const scale = viewScale(cssW);
+  const viewW = cssW / scale, viewH = cssH / scale;  // world px visible at zoom 1
+  const PAD = 34;          // breathing room around the outermost ball
+  const PLAYER_PAD = 26;   // the triangle never sits flush against an edge
+  const MIN_ZOOM = 0.5;    // past this the blocks stop reading as blocks
+
+  // The player seeds the box, so it is framed before anything else gets a say.
+  // A ball that has flown further than MIN_ZOOM can hold is dropped from the
+  // frame rather than shrinking the triangle to a speck to chase it.
+  let minX = player.x - PLAYER_PAD, maxX = player.x + PLAYER_PAD;
+  let minY = player.y - PLAYER_PAD, maxY = player.y + PLAYER_PAD;
+  const reachW = viewW / MIN_ZOOM / 2, reachH = viewH / MIN_ZOOM / 2;
   for (const b of balls) {
-    minX = Math.min(minX, b.x - BALL_RADIUS);
-    maxX = Math.max(maxX, b.x + BALL_RADIUS);
-    minY = Math.min(minY, b.y - BALL_RADIUS);
-    maxY = Math.max(maxY, b.y + BALL_RADIUS);
+    if (Math.abs(b.x - player.x) > reachW || Math.abs(b.y - player.y) > reachH) continue;
+    if (b.x - PAD < minX) minX = b.x - PAD;
+    if (b.x + PAD > maxX) maxX = b.x + PAD;
+    if (b.y - PAD < minY) minY = b.y - PAD;
+    if (b.y + PAD > maxY) maxY = b.y + PAD;
   }
 
-  // Calculate required zoom to fit all objects in viewport
-  const scale = viewScale(cssW);
-  const baseHalfW = cssW / 2 / scale;
-  const baseHalfH = cssH / 2 / scale;
-  const boxW = maxX - minX, boxH = maxY - minY;
-  const padding = 40; // Padding in world pixels
-  const reqZoomW = boxW > 0 ? (baseHalfW * 2 - padding * 2) / boxW : 1;
-  const reqZoomH = boxH > 0 ? (baseHalfH * 2 - padding * 2) / boxH : 1;
-  cam.targetZoom = Math.min(1, Math.min(reqZoomW, reqZoomH));
+  // Fit on the tighter axis. Pulling out is quicker than easing back in, so a
+  // fast shot stays in view instead of outrunning the zoom.
+  const fit = Math.min(viewW / (maxX - minX), viewH / (maxY - minY));
+  cam.targetZoom = Math.max(MIN_ZOOM, Math.min(1, fit));
+  const zRate = cam.targetZoom < cam.zoom ? 9 : 3.5;
+  cam.zoom += (cam.targetZoom - cam.zoom) * (1 - Math.exp(-zRate * dt));
 
-  // Smoothly interpolate zoom
-  const zoomK = 1 - Math.exp(-5 * dt);
-  cam.zoom += (cam.targetZoom - cam.zoom) * zoomK;
-
-  // Camera target is the centroid of all objects
   const tx = (minX + maxX) / 2, ty = (minY + maxY) / 2;
   const k = 1 - Math.exp(-7 * dt);
   cam.x += (tx - cam.x) * k;
   cam.y += (ty - cam.y) * k;
 
-  const halfW = cssW / 2 / (scale * cam.zoom);
-  const halfH = cssH / 2 / (scale * cam.zoom);
+  const halfW = viewW / cam.zoom / 2, halfH = viewH / cam.zoom / 2;
   cam.x = halfW * 2 >= WORLD_W ? WORLD_W / 2 : Math.min(Math.max(cam.x, halfW), WORLD_W - halfW);
   cam.y = halfH * 2 >= WORLD_H ? WORLD_H / 2 : Math.min(Math.max(cam.y, halfH), WORLD_H - halfH);
+
+  // Clamping to the world edge moves the camera off the box centre, and since
+  // the frame was sized to that box the triangle is what falls out of it. Pull
+  // the camera back onto the player last, whatever else has to be given up.
+  const edgeX = halfW - PLAYER_PAD, edgeY = halfH - PLAYER_PAD;
+  if (edgeX > 0) cam.x = Math.min(Math.max(cam.x, player.x - edgeX), player.x + edgeX);
+  if (edgeY > 0) cam.y = Math.min(Math.max(cam.y, player.y - edgeY), player.y + edgeY);
 }
 
 /* ── Draw ────────────────────────────────────────────────────────────────── */
