@@ -96,7 +96,7 @@ const player = {
 const cam = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
 const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0, anchorWorldX: 0, anchorWorldY: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
-const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
+const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false, ix: 0, iy: 0 };
 const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
 const JOYSTICK_DEADZONE = 12;
@@ -656,7 +656,7 @@ el.cv.addEventListener('pointerdown', (e) => {
     joystickL.id = e.pointerId; joystickL.active = true;
     joystickL.cx = e.clientX; joystickL.cy = e.clientY;
     joystickL.x = e.clientX; joystickL.y = e.clientY;
-    player.ix = 0; player.iy = 0;
+    joystickL.ix = 0; joystickL.iy = 0;
   } else {
     joystickR.id = e.pointerId; joystickR.active = true;
     joystickR.cx = e.clientX; joystickR.cy = e.clientY;
@@ -677,10 +677,10 @@ el.cv.addEventListener('pointermove', (e) => {
       // Rescaled past the deadzone rather than clamped, so easing off the edge
       // gives a genuinely slow crawl instead of jumping straight to full tilt.
       const mag = Math.min(1, (dist - JOYSTICK_DEADZONE) / (JOYSTICK_RADIUS - JOYSTICK_DEADZONE));
-      player.ix = (dx / dist) * mag;
-      player.iy = (dy / dist) * mag;
+      joystickL.ix = (dx / dist) * mag;
+      joystickL.iy = (dy / dist) * mag;
     } else {
-      player.ix = 0; player.iy = 0;
+      joystickL.ix = 0; joystickL.iy = 0;
     }
   } else if (e.pointerId === joystickR.id && joystickR.active) {
     joystickR.x = e.clientX; joystickR.y = e.clientY;
@@ -697,7 +697,7 @@ function endPointer(e) {
   if (e.pointerId === joystickL.id) {
     // Input drops, velocity does not — the coast to a stop is in stepPlayer.
     joystickL.active = false; joystickL.id = -1;
-    player.ix = 0; player.iy = 0;
+    joystickL.ix = 0; joystickL.iy = 0;
   } else if (e.pointerId === joystickR.id) {
     joystickR.active = false; joystickR.id = -1;
     aim.active = false;
@@ -710,6 +710,127 @@ function endPointer(e) {
 }
 el.cv.addEventListener('pointerup', endPointer);
 el.cv.addEventListener('pointercancel', endPointer);
+
+/* ── Keyboard ──────────────────────────────────────────────────────────────
+ *
+ * WASD and the arrow keys, held rather than tapped. They produce the same
+ * -1..1 vector the thumb stick does, so everything downstream — the velocity
+ * curve, the slide, the wall slide — is shared and needs no special case.
+ */
+const keys = new Set();
+const KEY_DIR = {
+  KeyW: [0, -1], ArrowUp: [0, -1],
+  KeyS: [0, 1], ArrowDown: [0, 1],
+  KeyA: [-1, 0], ArrowLeft: [-1, 0],
+  KeyD: [1, 0], ArrowRight: [1, 0],
+};
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || !KEY_DIR[e.code]) return;
+  keys.add(e.code);
+  e.preventDefault();   // arrows would scroll the page
+});
+window.addEventListener('keyup', (e) => {
+  if (KEY_DIR[e.code]) keys.delete(e.code);
+});
+// A key held while the tab loses focus never sends its keyup, so the player
+// would walk off on their own on return. Drop everything held instead.
+window.addEventListener('blur', () => keys.clear());
+document.addEventListener('visibilitychange', () => { if (document.hidden) keys.clear(); });
+
+/** Keys as a stick vector. Diagonals are normalised so they are not faster. */
+function keyVector() {
+  let x = 0, y = 0;
+  for (const code of keys) { const d = KEY_DIR[code]; x += d[0]; y += d[1]; }
+  if (x === 0 && y === 0) return null;
+  const len = Math.hypot(x, y);
+  return [x / len, y / len];
+}
+
+/* ── Gamepad ───────────────────────────────────────────────────────────────
+ *
+ * Polled, not evented — the Gamepad API has no movement events, so the pad is
+ * read fresh each frame. Axes 0/1 are the left stick on every standard mapping.
+ */
+const PAD_DEADZONE = 0.22;
+
+function padVector() {
+  if (typeof navigator === 'undefined' || !navigator.getGamepads) return null;
+  const pads = navigator.getGamepads();
+  if (!pads) return null;
+  for (const p of pads) {
+    if (!p || !p.connected || !p.axes || p.axes.length < 2) continue;
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+    const mag = Math.hypot(ax, ay);
+    if (mag <= PAD_DEADZONE) continue;
+    // Rescaled past the deadzone, matching the touch stick, so easing the
+    // stick over gives a slow crawl rather than jumping to full tilt.
+    const k = Math.min(1, (mag - PAD_DEADZONE) / (1 - PAD_DEADZONE)) / mag;
+    return [ax * k, ay * k];
+  }
+  return null;
+}
+
+/** First connected pad with usable axes, or null. */
+function firstPad() {
+  if (typeof navigator === 'undefined' || !navigator.getGamepads) return null;
+  const pads = navigator.getGamepads();
+  if (!pads) return null;
+  for (const p of pads) if (p && p.connected && p.axes && p.axes.length >= 2) return p;
+  return null;
+}
+
+/**
+ * Right stick as the slingshot, mirroring the thumb exactly: pull it back to
+ * load, let it centre to loose. Axes 2/3 are the right stick on the standard
+ * mapping. `held` is what turns the stick returning to centre into a release
+ * rather than into a zero-power shot every frame.
+ */
+const padAim = { held: false };
+
+function pollPadAim() {
+  const p = firstPad();
+  const ax = p && p.axes.length >= 4 ? (p.axes[2] || 0) : 0;
+  const ay = p && p.axes.length >= 4 ? (p.axes[3] || 0) : 0;
+  const mag = Math.hypot(ax, ay);
+
+  if (mag > PAD_DEADZONE) {
+    const k = Math.min(1, (mag - PAD_DEADZONE) / (1 - PAD_DEADZONE));
+    // Pulled back, so the shot goes the other way — same as dragging the thumb.
+    aim.angle = Math.atan2(-ay, -ax);
+    aim.power = k;
+    aim.active = true;
+    // No screen anchor on a pad, so the bands hang off the player themselves.
+    aim.anchorWorldX = player.x; aim.anchorWorldY = player.y;
+    padAim.held = true;
+    return;
+  }
+
+  if (!padAim.held) return;
+  padAim.held = false;
+  aim.active = false;
+  if (!world || aim.power <= 0.06 || reload > 0) return;
+  balls.push(...spawnVolley(player.x, player.y, aim.angle, aim.power, state.activeBall, stats));
+  reload = stats.reload;
+  buzz(20);
+  if (!firedOnce) { firedOnce = true; el.help.classList.add('gone'); }
+}
+
+/**
+ * One movement vector from whichever source is being used. Touch wins while a
+ * thumb is down, then the pad, then the keys — so picking up a controller
+ * mid-run just works, and nothing fights over `player.ix`.
+ */
+function pollMoveInput() {
+  let v = null;
+  if (joystickL.active) v = [joystickL.ix, joystickL.iy];
+  if (!v) v = padVector();
+  if (!v) v = keyVector();
+  player.ix = v ? v[0] : 0;
+  player.iy = v ? v[1] : 0;
+  // A thumb on the right half owns the slingshot; do not let the pad stomp it.
+  if (!joystickR.active) pollPadAim();
+}
 
 // Tech tree panning. Capture is taken lazily, only once the gesture is clearly
 // a drag — grabbing it on pointerdown retargets the event and taps on nodes
@@ -739,8 +860,10 @@ el.treeView.addEventListener('pointercancel', endPan);
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 
 el.techBtn.addEventListener('click', () => {
-  // Drop any held stick, or the player resumes the old walk on close.
+  // Drop any held stick or key, or the player resumes the old walk on close.
   joystickL.active = false; joystickL.id = -1;
+  joystickL.ix = 0; joystickL.iy = 0;
+  keys.clear();
   player.ix = 0; player.iy = 0; player.vx = 0; player.vy = 0;
   state.treeOpen = true;
   el.tree.classList.add('open');
@@ -941,6 +1064,7 @@ function update(dt, now) {
   dmg.stats = stats;
   dmg.fx = fx;
 
+  pollMoveInput();
   stepPlayer(dt);
 
   const alive = [];
