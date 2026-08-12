@@ -101,8 +101,8 @@ const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
 const JOYSTICK_DEADZONE = 12;
 
-/** Top speed at full stick, in px/s. CELL is 16, so this is ~7 blocks/sec. */
-const MOVE_SPEED = 112;
+/** Top speed at full stick, in px/s. CELL is 16, so this is ~14 blocks/sec. */
+const MOVE_SPEED = 224;
 /**
  * How sharply velocity chases the stick, per second. Acceleration is quicker
  * than the coast so the triangle answers the thumb immediately but still
@@ -398,7 +398,7 @@ function buildTree() {
     b.style.left = px(n) + 'px';
     b.style.top = py(n) + 'px';
     b.style.setProperty('--nc', color);
-    b.title = n.name;
+    if (n.id !== 'core') b.title = n.name;
     b.innerHTML =
       `<svg width="22" height="22" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">${ICONS[n.icon]}</svg>`;
     b.addEventListener('pointerenter', () => { hoverAccent = color; refreshAccent(); });

@@ -68,7 +68,7 @@ function distFrom(col, row, fromCol, fromRow) {
 const KIND_ROCK = 0, KIND_TOKEN = 1, KIND_GOLDEN = 2, KIND_BEDROCK = 3;
 
 /** 1 in N solid blocks hides a token, before luck bonuses. */
-const TOKEN_RARITY = 120;
+const TOKEN_RARITY = 50;
 /** The prize sits this far from spawn, in blocks — layers 6 through 8. */
 const GOLDEN_DIST_MIN = 70;
 const GOLDEN_DIST_MAX = 90;
