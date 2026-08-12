@@ -86,7 +86,7 @@ const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
 const JOYSTICK_DEADZONE = 15;
-const JOYSTICK_MOVE_SPEED = 16;
+const JOYSTICK_MOVE_SPEED = 2;
 let particles = [], arcs = [], texts = [], blockFx = [];
 let reload = 0, shake = 0;
 /** Furthest straight-line distance from spawn reached, in blocks. Drives the
