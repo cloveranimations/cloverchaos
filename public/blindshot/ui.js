@@ -86,7 +86,7 @@ const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
 const JOYSTICK_DEADZONE = 15;
-const JOYSTICK_MOVE_SPEED = 60;
+const JOYSTICK_MOVE_SPEED = 160;
 let particles = [], arcs = [], texts = [], blockFx = [];
 let reload = 0, shake = 0;
 /** Furthest straight-line distance from spawn reached, in blocks. Drives the
@@ -1069,7 +1069,8 @@ function draw(now) {
   if (aim.active && aim.power > 0.06) {
     renderAim(c, player.x, player.y, aim.angle, aim.power, reload <= 0, accentRgba(1));
   }
-  renderPlayer(c, player.x, player.y, aim.angle, accentRgba(1));
+  const displayAngle = (player.vx !== 0 || player.vy !== 0) ? Math.atan2(player.vy, player.vx) : aim.angle;
+  renderPlayer(c, player.x, player.y, displayAngle, accentRgba(1));
 
   c.font = '600 9px monospace';
   c.textAlign = 'center';
