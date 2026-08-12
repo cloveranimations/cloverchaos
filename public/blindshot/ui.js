@@ -818,17 +818,28 @@ function update(dt, now) {
   dmg.fx = fx;
 
   if (player.vx !== 0 || player.vy !== 0) {
-    const nx = player.x + player.vx * dt;
-    const ny = player.y + player.vy * dt;
-    const nc = Math.floor(nx / CELL);
-    const nr = Math.floor(ny / CELL);
-    const target = walkToward(world, player.col, player.row, nc, nr);
-    if (target) {
-      player.col = target.col; player.row = target.row;
-      player.x = (target.col + 0.5) * CELL;
-      player.y = (target.row + 0.5) * CELL;
-      reach = Math.max(reach, distFromSpawn(target.col, target.row));
-      miniDirty = true;
+    const moveDir = Math.atan2(player.vy, player.vx);
+    let moved = false;
+    for (let attempts = 0; attempts < 2; attempts++) {
+      let tryCol = player.col, tryRow = player.row;
+      const dx = Math.cos(moveDir), dy = Math.sin(moveDir);
+      if (Math.abs(dx) > Math.abs(dy)) {
+        tryCol += dx > 0 ? 1 : -1;
+      } else {
+        tryRow += dy > 0 ? 1 : -1;
+      }
+      if (tryCol >= 0 && tryCol < GRID_W && tryRow >= 0 && tryRow < GRID_H) {
+        const i = tryRow * GRID_W + tryCol;
+        if (world.hp[i] <= 0) {
+          player.col = tryCol; player.row = tryRow;
+          player.x = (tryCol + 0.5) * CELL;
+          player.y = (tryRow + 0.5) * CELL;
+          reach = Math.max(reach, distFromSpawn(tryCol, tryRow));
+          miniDirty = true;
+          moved = true;
+          break;
+        }
+      }
     }
   }
 
