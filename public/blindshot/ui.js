@@ -93,7 +93,7 @@ const player = {
   col: START_COL, row: START_ROW,
   x: 0, y: 0, vx: 0, vy: 0, ix: 0, iy: 0, face: Math.PI / 2,
 };
-const cam = { x: 0, y: 0 };
+const cam = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
 const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0, anchorWorldX: 0, anchorWorldY: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
 const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
@@ -636,7 +636,7 @@ function resize() {
 }
 
 function screenToWorld(clientX, clientY) {
-  const scale = viewScale(cssW);
+  const scale = viewScale(cssW) * cam.zoom;
   return {
     x: cam.x + (clientX - cssW / 2) / scale,
     y: cam.y + (clientY - cssH / 2) / scale,
@@ -1031,19 +1031,38 @@ function update(dt, now) {
   shake *= Math.pow(0.0015, dt);
   if (shake < 0.15) shake = 0;
 
-  // Camera rides the ball swarm while it flies, else the player.
-  let tx = player.x, ty = player.y;
-  if (balls.length) {
-    let sx = 0, sy = 0;
-    for (const b of balls) { sx += b.x; sy += b.y; }
-    tx = sx / balls.length; ty = sy / balls.length;
+  // Calculate bounding box of all balls and the player
+  let minX = player.x, maxX = player.x, minY = player.y, maxY = player.y;
+  const BALL_RADIUS = 3.4; // From render.js
+  for (const b of balls) {
+    minX = Math.min(minX, b.x - BALL_RADIUS);
+    maxX = Math.max(maxX, b.x + BALL_RADIUS);
+    minY = Math.min(minY, b.y - BALL_RADIUS);
+    maxY = Math.max(maxY, b.y + BALL_RADIUS);
   }
+
+  // Calculate required zoom to fit all objects in viewport
+  const scale = viewScale(cssW);
+  const baseHalfW = cssW / 2 / scale;
+  const baseHalfH = cssH / 2 / scale;
+  const boxW = maxX - minX, boxH = maxY - minY;
+  const padding = 40; // Padding in world pixels
+  const reqZoomW = boxW > 0 ? (baseHalfW * 2 - padding * 2) / boxW : 1;
+  const reqZoomH = boxH > 0 ? (baseHalfH * 2 - padding * 2) / boxH : 1;
+  cam.targetZoom = Math.min(1, Math.min(reqZoomW, reqZoomH));
+
+  // Smoothly interpolate zoom
+  const zoomK = 1 - Math.exp(-5 * dt);
+  cam.zoom += (cam.targetZoom - cam.zoom) * zoomK;
+
+  // Camera target is the centroid of all objects
+  const tx = (minX + maxX) / 2, ty = (minY + maxY) / 2;
   const k = 1 - Math.exp(-7 * dt);
   cam.x += (tx - cam.x) * k;
   cam.y += (ty - cam.y) * k;
 
-  const scale = viewScale(cssW);
-  const halfW = cssW / 2 / scale, halfH = cssH / 2 / scale;
+  const halfW = cssW / 2 / (scale * cam.zoom);
+  const halfH = cssH / 2 / (scale * cam.zoom);
   cam.x = halfW * 2 >= WORLD_W ? WORLD_W / 2 : Math.min(Math.max(cam.x, halfW), WORLD_W - halfW);
   cam.y = halfH * 2 >= WORLD_H ? WORLD_H / 2 : Math.min(Math.max(cam.y, halfH), WORLD_H - halfH);
 }
@@ -1114,7 +1133,7 @@ function renderJoysticks(c) {
 
 function draw(now) {
   const c = ctx;
-  const scale = viewScale(cssW);
+  const scale = viewScale(cssW) * cam.zoom;
   const halfW = cssW / 2 / scale, halfH = cssH / 2 / scale;
   const jx = shake > 0 ? (Math.random() - 0.5) * shake : 0;
   const jy = shake > 0 ? (Math.random() - 0.5) * shake : 0;
