@@ -94,7 +94,7 @@ const player = {
   x: 0, y: 0, vx: 0, vy: 0, ix: 0, iy: 0, face: Math.PI / 2,
 };
 const cam = { x: 0, y: 0 };
-const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0 };
+const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0, anchorWorldX: 0, anchorWorldY: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
 const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
@@ -662,6 +662,9 @@ el.cv.addEventListener('pointerdown', (e) => {
     joystickR.cx = e.clientX; joystickR.cy = e.clientY;
     joystickR.x = e.clientX; joystickR.y = e.clientY;
     aim.active = true; aim.sx = e.clientX; aim.sy = e.clientY; aim.power = 0;
+    // Store anchor in world coordinates for rendering
+    const w = screenToWorld(e.clientX, e.clientY);
+    aim.anchorWorldX = w.x; aim.anchorWorldY = w.y;
   }
 });
 
@@ -1164,7 +1167,7 @@ function draw(now) {
   renderBalls(c, balls);
 
   if (aim.active && aim.power > 0.06) {
-    renderAim(c, player.x, player.y, aim.angle, aim.power, reload <= 0, accentRgba(1));
+    renderAim(c, player.x, player.y, aim.angle, aim.power, reload <= 0, accentRgba(1), aim.anchorWorldX, aim.anchorWorldY);
   }
   // Facing follows the walk while there is one, and the shot otherwise, so
   // lining up a throw still turns the triangle to the target.

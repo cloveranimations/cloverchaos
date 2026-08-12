@@ -308,16 +308,50 @@ function renderArcs(c, arcs, drawBolt) {
   c.restore();
 }
 
-/** The dotted throw line. White, evenly spaced, fading out with range. */
-function renderAim(c, px, py, angle, power, loaded, accent) {
-  const dots = Math.round(6 + power * 12);
+/** Angry Birds-style pull-back aiming. Shows the slingshot being pulled back from anchor. */
+function renderAim(c, px, py, angle, power, loaded, accent, anchorWorldX, anchorWorldY) {
+  if (power < 0.02) return; // Don't render if barely pulled
+
   c.save();
+
+  // Pull-back vector: from player position backward (opposite of shot direction), scaled by power
+  const pullDist = power * 120; // MAX_PULL visual distance
+  const pullX = Math.cos(angle + Math.PI) * pullDist; // Opposite direction of shot
+  const pullY = Math.sin(angle + Math.PI) * pullDist;
+
+  // Draw the slingshot bands (two lines from anchor to the pull point)
+  c.strokeStyle = loaded ? accent : 'rgba(255,255,255,.35)';
+  c.lineWidth = 2 + power * 2;
+  c.globalAlpha = loaded ? 0.8 : 0.4;
+
+  // Left band
+  c.beginPath();
+  c.moveTo(anchorWorldX - 8, anchorWorldY - 4);
+  c.lineTo(px + pullX - 6, py + pullY);
+  c.stroke();
+
+  // Right band
+  c.beginPath();
+  c.moveTo(anchorWorldX + 8, anchorWorldY + 4);
+  c.lineTo(px + pullX + 6, py + pullY);
+  c.stroke();
+
+  // Anchor point (small circle where the slingshot is held)
   c.fillStyle = loaded ? accent : 'rgba(255,255,255,.35)';
-  for (let i = 1; i <= dots; i++) {
-    const d = 10 + i * 9;
-    c.globalAlpha = loaded ? 1 - i / (dots + 3) : 0.3;
-    c.fillRect(px + Math.cos(angle) * d - 1.5, py + Math.sin(angle) * d - 1.5, 3, 3);
-  }
+  c.globalAlpha = loaded ? 0.6 : 0.3;
+  c.beginPath();
+  c.arc(anchorWorldX, anchorWorldY, 4, 0, Math.PI * 2);
+  c.fill();
+
+  // Power indicator: glowing ring at the pull point
+  c.globalAlpha = power * (loaded ? 0.8 : 0.3);
+  const ringRadius = 6 + power * 8;
+  c.strokeStyle = loaded ? accent : 'rgba(255,255,255,.35)';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.arc(px + pullX, py + pullY, ringRadius, 0, Math.PI * 2);
+  c.stroke();
+
   c.restore();
 }
 
