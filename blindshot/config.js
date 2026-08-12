@@ -19,31 +19,54 @@ const START_CHAMBER = 3;
 const BEDROCK_HP = 32000;
 
 /**
- * One row per layer. This is the table to edit when redesigning blocks —
- * nothing else needs to change.
- *
- *   color  the block's own colour, at full light. Deliberately near-primary:
- *          the renderer multiplies it by the light level, so a muted base
- *          colour turns to mud two blocks from a lamp.
- *   glow   colour of the light this block radiates into the world, or null
- *          for rock that only reflects. Emissive blocks are what make a cave
- *          readable, so keep at least one per stretch of map.
- *   light  how far that glow carries, in blocks. 0 with a glow set is inert.
+ * Layers set difficulty, not appearance: how tough the rock is and what the
+ * HUD calls it. `color` here only tints the layer name in the HUD.
  */
 const TIERS = [
-  { name: 'Crust', hp: 3,   color: '#c8ccd0', glow: '#ffffff', light: 2.3 },
-  { name: 'Moss',  hp: 6,   color: '#00c000', glow: '#00c000', light: 2.0 },
-  { name: 'Clay',  hp: 11,  color: '#a0b000', glow: '#a0b000', light: 1.9 },
-  { name: 'Rust',  hp: 19,  color: '#d05000', glow: '#d05000', light: 1.9 },
-  { name: 'Ember', hp: 32,  color: '#e00010', glow: '#e00010', light: 2.0 },
-  { name: 'Slate', hp: 52,  color: '#909aa0', glow: '#c0ccd4', light: 1.7 },
-  { name: 'Void',  hp: 84,  color: '#ff00ff', glow: '#ff00ff', light: 2.6 },
-  { name: 'Core',  hp: 130, color: '#c08000', glow: '#c08000', light: 2.2 },
+  { name: 'Crust', hp: 3,   color: '#c8ccd0' },
+  { name: 'Moss',  hp: 6,   color: '#00c000' },
+  { name: 'Clay',  hp: 11,  color: '#a0b000' },
+  { name: 'Rust',  hp: 19,  color: '#d05000' },
+  { name: 'Ember', hp: 32,  color: '#e00010' },
+  { name: 'Slate', hp: 52,  color: '#909aa0' },
+  { name: 'Void',  hp: 84,  color: '#ff00ff' },
+  { name: 'Core',  hp: 130, color: '#c08000' },
 ];
 
-/** Emissive specials, same shape as a tier row so the renderer treats them alike. */
-const BLOCK_TOKEN  = { color: '#ffffff', glow: '#ffffff', light: 2.8 };
-const BLOCK_GOLDEN = { color: '#ffd23d', glow: '#ffd23d', light: 3.4 };
+/**
+ * Block appearance. Every solid block rolls one of these at worldgen,
+ * independently of its layer — colour is scattered, difficulty is radial.
+ * This is the table to edit when designing blocks; nothing else changes.
+ *
+ *   color   the block's colour at full light. Near-primary on purpose: the
+ *           renderer multiplies it by the light reaching it, so a muted base
+ *           colour turns to mud two blocks from a lamp.
+ *   glow    colour of the light this block radiates, or null for dead rock.
+ *   light   how far that glow carries, in blocks.
+ *   weight  relative roll frequency. Lamps are deliberately rare — they are
+ *           the only reason any of the cave is visible, so making them common
+ *           flattens the map into one even wash with no dark left in it.
+ */
+const BLOCKS = [
+  { color: '#c8ccd0', glow: null, light: 0, weight: 13 },
+  { color: '#909aa0', glow: null, light: 0, weight: 12 },
+  { color: '#e00010', glow: null, light: 0, weight: 12 },
+  { color: '#d05000', glow: null, light: 0, weight: 11 },
+  { color: '#a0b000', glow: null, light: 0, weight: 11 },
+  { color: '#00c000', glow: null, light: 0, weight: 11 },
+  { color: '#c08000', glow: null, light: 0, weight: 10 },
+  { color: '#2f6fd0', glow: null, light: 0, weight: 8 },
+  { color: '#7a3fb5', glow: null, light: 0, weight: 7 },
+  // ── Lamps ──────────────────────────────────────────────────────────────
+  { color: '#ffffff', glow: '#ffffff', light: 3.4, weight: 1.5 },
+  { color: '#ff00ff', glow: '#ff00ff', light: 3.0, weight: 0.7 },
+  { color: '#00e0d0', glow: '#00e0d0', light: 2.8, weight: 0.5 },
+  { color: '#ffe020', glow: '#ffe020', light: 3.0, weight: 0.35 },
+];
+
+/** Specials, same shape as a block row so the renderer treats them alike. */
+const BLOCK_TOKEN  = { color: '#ffffff', glow: '#ffffff', light: 1.6 };
+const BLOCK_GOLDEN = { color: '#ffd23d', glow: '#ffd23d', light: 5.0 };
 const BLOCK_BEDROCK = { color: '#20282c', glow: null, light: 0 };
 /**
  * Layers radiate out from the spawn point, they are not rows. Whatever corner
@@ -103,11 +126,17 @@ const PALETTE = {
 /** Light kept per block travelled through open space. */
 const LIGHT_FALL_AIR = 0.82;
 /** Light kept per block travelled through solid rock. */
-const LIGHT_FALL_SOLID = 0.58;
+const LIGHT_FALL_SOLID = 0.48;
 /** Floor light every explored cell gets, so mined-out rooms never go pitch black. */
-const LIGHT_AMBIENT = 0.04;
+const LIGHT_AMBIENT = 0.15;
 /** Light below this is clamped to nothing, which keeps the sweeps cheap. */
 const LIGHT_CUTOFF = 0.015;
+/**
+ * Rounds of the four sweeps. One round only propagates in an L — right then
+ * down — so light rounding two corners needs a second pass or it leaves hard
+ * diagonal seams behind pillars.
+ */
+const LIGHT_PASSES = 2;
 
 const BALLS = {
   basic: {

@@ -23,6 +23,8 @@ function hexToRgb(hex) {
 }
 
 /** Flat per-block base colours. Light does all the shading. */
+const BLOCK_RGB = BLOCKS.map((b) => hexToRgb(b.color));
+/** Layer colours are HUD-only now, but the minimap still keys off them. */
 const TIER_RGB = TIERS.map((t) => hexToRgb(t.color));
 const RGB_TOKEN = hexToRgb(BLOCK_TOKEN.color);
 const RGB_GOLDEN = hexToRgb(BLOCK_GOLDEN.color);
@@ -92,13 +94,15 @@ function renderBlocks(c, w, lm, c0, c1, r0, r1, pulse) {
 
       const hp = w.hp[i];
       if (hp <= 0) {
-        // Carved-out air: the room tint, lit. Deliberately much dimmer than
-        // rock at the same light level — a mined-out pocket should read as a
-        // hole you can see into, not as a lit surface.
-        const AIR = 0.45;
-        d[o] = RGB_VOID.r + (RGB_BG.r - RGB_VOID.r) * lr * AIR;
-        d[o + 1] = RGB_VOID.g + (RGB_BG.g - RGB_VOID.g) * lg * AIR;
-        d[o + 2] = RGB_VOID.b + (RGB_BG.b - RGB_VOID.b) * lb * AIR;
+        // Carved-out air takes the colour of whatever is lighting it, not a
+        // scaled version of the room tint — otherwise a gold or magenta lamp
+        // still washes its own chamber the same background green.
+        // Kept well below rock gain so a cleared pocket reads as a hole you
+        // can see into rather than as a lit surface.
+        const AIR = 0.5;
+        d[o] = RGB_VOID.r + lr * 255 * AIR;
+        d[o + 1] = RGB_VOID.g + lg * 255 * AIR;
+        d[o + 2] = RGB_VOID.b + lb * 255 * AIR;
         continue;
       }
 
@@ -107,7 +111,7 @@ function renderBlocks(c, w, lm, c0, c1, r0, r1, pulse) {
       if (kind === KIND_TOKEN) col0 = RGB_TOKEN;
       else if (kind === KIND_GOLDEN) col0 = RGB_GOLDEN;
       else if (kind === KIND_BEDROCK) col0 = RGB_BEDROCK;
-      else col0 = TIER_RGB[w.hue[i]];
+      else col0 = BLOCK_RGB[w.hue[i]];
 
       // Per-block jitter so a wall of one tier is not a flat slab, then damage
       // reads as the block going dark and dead rather than as a black overlay.
@@ -170,6 +174,91 @@ function renderGlow(c, w, lm, c0, c1, r0, r1, strength) {
   // this soft.
   c.imageSmoothingQuality = 'low';
   c.drawImage(lightBuf.cv, 0, 0, bw, h, c0 * CELL, r0 * CELL, bw * CELL, h * CELL);
+  c.restore();
+}
+
+/* ── Block impact animation ───────────────────────────────────────────────
+ *
+ * Drawn over the block buffer rather than inside it: the buffer is one pixel
+ * per cell, so anything that needs to move, scale or outdent past a cell
+ * boundary has to be its own pass.
+ */
+
+/** How long each kind of hit stays on screen, in seconds. */
+const FX_HIT_LIFE = 0.22;
+const FX_BREAK_LIFE = 0.42;
+
+function renderBlockFx(c, list) {
+  if (!list.length) return;
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+
+  for (const f of list) {
+    const x = f.col * CELL, y = f.row * CELL;
+
+    if (f.kind === 'hit') {
+      // A struck block flashes its own colour and snaps back. Quick enough to
+      // register as impact rather than as the block changing state.
+      const t = 1 - f.life / FX_HIT_LIFE;      // 0 → 1 over the life
+      const k = 1 - t;
+      c.globalAlpha = k * 0.85;
+      c.fillStyle = f.color;
+      const g = t * 3;                          // pull in slightly as it fades
+      c.fillRect(x + g, y + g, CELL - g * 2, CELL - g * 2);
+
+      c.globalAlpha = k * 0.5;
+      c.strokeStyle = '#ffffff';
+      c.lineWidth = 1.5;
+      const s = t * 7;
+      c.strokeRect(x - s, y - s, CELL + s * 2, CELL + s * 2);
+      continue;
+    }
+
+    // break: the cell blows outward as a fading ring plus a bright core.
+    const t = 1 - f.life / FX_BREAK_LIFE;
+    const k = 1 - t;
+    const ease = 1 - (1 - t) * (1 - t);         // fast out, slow settle
+    const s = ease * CELL * 0.85;
+    c.globalAlpha = k * 0.9;
+    c.strokeStyle = f.color;
+    c.lineWidth = 1 + k * 2.5;
+    c.strokeRect(x - s, y - s, CELL + s * 2, CELL + s * 2);
+
+    c.globalAlpha = k * k * 0.8;
+    c.fillStyle = '#ffffff';
+    const inset = ease * CELL * 0.5;
+    c.fillRect(x + inset, y + inset, CELL - inset * 2, CELL - inset * 2);
+  }
+
+  c.restore();
+}
+
+/**
+ * The golden block's shine. Its light already reaches through rock via the
+ * light map; this is the bit that says "treasure" — a slow four-point
+ * sparkle over a warm core.
+ */
+function renderGoldenShine(c, gx, gy, now, strength) {
+  const spin = now / 900;
+  const pulse = 0.65 + 0.35 * Math.sin(now / 220);
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  c.translate(gx, gy);
+
+  const halo = c.createRadialGradient(0, 0, 0, 0, 0, CELL * 3.4 * pulse);
+  halo.addColorStop(0, `rgba(255,230,140,${0.5 * strength})`);
+  halo.addColorStop(0.45, `rgba(255,200,60,${0.16 * strength})`);
+  halo.addColorStop(1, 'rgba(255,190,40,0)');
+  c.fillStyle = halo;
+  c.fillRect(-CELL * 4, -CELL * 4, CELL * 8, CELL * 8);
+
+  c.rotate(spin);
+  c.fillStyle = `rgba(255,248,214,${0.9 * strength})`;
+  const arm = CELL * (1.5 + 0.45 * pulse), w = 1.6;
+  for (let i = 0; i < 2; i++) {
+    c.fillRect(-arm, -w / 2, arm * 2, w);
+    c.rotate(Math.PI / 2);
+  }
   c.restore();
 }
 

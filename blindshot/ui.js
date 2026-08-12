@@ -82,7 +82,7 @@ const player = { col: START_COL, row: START_ROW, x: 0, y: 0 };
 const cam = { x: 0, y: 0 };
 const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
-let particles = [], arcs = [], texts = [];
+let particles = [], arcs = [], texts = [], blockFx = [];
 let reload = 0, shake = 0;
 /** Furthest straight-line distance from spawn reached, in blocks. Drives the
  *  LAYER readout and the level-up banner. */
@@ -167,7 +167,7 @@ function startWorld(seed, data) {
   player.x = (player.col + 0.5) * CELL;
   player.y = (player.row + 0.5) * CELL;
   cam.x = player.x; cam.y = player.y;
-  balls = []; particles = []; arcs = []; texts = [];
+  balls = []; particles = []; arcs = []; texts = []; blockFx = [];
   reload = 0; shake = 0;
   world = w;
   miniDirty = true;
@@ -787,7 +787,8 @@ function drawMini() {
     } else if (kind === KIND_GOLDEN) {
       d[o] = 255; d[o + 1] = 210; d[o + 2] = 61; d[o + 3] = 255;
     } else {
-      const c = TIER_RGB[world.hue[i]];
+      // `hue` indexes BLOCKS, not TIERS — the two tables are different lengths.
+      const c = BLOCK_RGB[world.hue[i]];
       d[o] = c.r * 0.75; d[o + 1] = c.g * 0.75; d[o + 2] = c.b * 0.75; d[o + 3] = 255;
     }
   }
@@ -842,6 +843,10 @@ function update(dt, now) {
   if (fx.particles.length) particles.push(...fx.particles);
   if (fx.arcs.length) arcs.push(...fx.arcs);
   if (fx.texts.length) texts.push(...fx.texts);
+  for (const f of fx.blockFx) {
+    f.life = f.kind === 'hit' ? FX_HIT_LIFE : FX_BREAK_LIFE;
+    blockFx.push(f);
+  }
   if (fx.shake > shake) shake = Math.min(30, fx.shake);
   if (fx.brokenCount) { broken += fx.brokenCount; miniDirty = true; }
   if (fx.tokensGained) { state.tokens += fx.tokensGained; miniDirty = true; }
@@ -883,6 +888,10 @@ function update(dt, now) {
     buzz([20, 40, 20]);
   }
 
+  for (let i = blockFx.length - 1; i >= 0; i--) {
+    blockFx[i].life -= dt;
+    if (blockFx[i].life <= 0) blockFx.splice(i, 1);
+  }
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.life -= dt;
@@ -975,26 +984,18 @@ function draw(now) {
   renderBlocks(c, world, lightMap, c0, c1, r0, r1, pulse);
   renderGlow(c, world, lightMap, c0, c1, r0, r1, 0.30);
 
-  // The golden block is a lamp in its own right, so the light map already
-  // bleeds it through rock. All that is left is the pulse that says "close".
+  // The golden block is the strongest lamp on the map, so the light map
+  // already bleeds it through rock. This is the shine on top of that.
   if (world.goldenIdx >= 0 && world.hp[world.goldenIdx] > 0) {
     const gx = ((world.goldenIdx % GRID_W) + 0.5) * CELL;
     const gy = (((world.goldenIdx / GRID_W) | 0) + 0.5) * CELL;
     const dist = Math.hypot(gx - cam.x, gy - cam.y) / CELL;
     if (dist < GOLDEN_AURA * 2.4) {
-      const strength = Math.max(0, 1 - dist / (GOLDEN_AURA * 2.4));
-      const rad = GOLDEN_AURA * CELL;
-      const g = c.createRadialGradient(gx, gy, 0, gx, gy, rad);
-      g.addColorStop(0, `rgba(255,210,61,${0.34 * strength * (0.6 + 0.4 * pulse)})`);
-      g.addColorStop(1, 'rgba(255,210,61,0)');
-      c.save();
-      c.globalCompositeOperation = 'lighter';
-      c.fillStyle = g;
-      c.fillRect(gx - rad, gy - rad, rad * 2, rad * 2);
-      c.restore();
+      renderGoldenShine(c, gx, gy, now, Math.max(0, 1 - dist / (GOLDEN_AURA * 2.4)));
     }
   }
 
+  renderBlockFx(c, blockFx);
   renderArcs(c, arcs, drawBolt);
   renderParticles(c, particles);
   renderBalls(c, balls);

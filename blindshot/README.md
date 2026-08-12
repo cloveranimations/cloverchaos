@@ -58,16 +58,28 @@ only the last two.
   is always layer 1 / Crust, and every 12 blocks of straight-line distance steps
   one tier harder, out to layer 8 / Core. There is no such thing as a spawn you
   cannot dig out of, and the HUD reads `FROM SPAWN` in blocks rather than depth.
+- **Block colour is rolled per block, not per layer.** The map reads as
+  scattered colour while difficulty stays radial: a block's hardness comes from
+  its layer, its appearance from a weighted roll over `BLOCKS`.
 - **Blocks are lit, not shaded.** Every block's on-screen colour is its own
-  colour multiplied by the light reaching it, so unlit rock is genuinely
-  invisible rather than merely dim. Emissive blocks flood a per-cell RGB light
-  map, four directional sweeps smear it outward — losing ~18% per block of air
-  and ~42% per block of rock — and the same map is drawn a second time,
-  smoothed and additive, to bleed the glow past hard block edges. Balls and the
-  player are moving lamps, so a shot lights its own way into the dark.
-- **Redesigning blocks is a one-table job.** `TIERS` in `config.js` holds a
-  `color`, a `glow` and a `light` reach per layer; `BLOCK_TOKEN` and
-  `BLOCK_GOLDEN` are the same shape. Nothing else needs touching.
+  colour multiplied by the light reaching it. Lamp blocks flood a per-cell RGB
+  light map, sweeps smear it outward — losing ~18% per block of air and ~52%
+  per block of rock — and the same map is drawn again, smoothed and additive,
+  to bleed glow past hard block edges. Balls and the player are moving lamps,
+  so a shot lights its own way into the dark.
+  Lamps are ~3% of blocks **on purpose**: make them common and the whole map
+  flattens into one even wash with no dark left in it, which is the failure
+  mode this system exists to avoid.
+- **The golden block is the brightest thing on the map** — it floods its
+  chamber gold and carries a slow four-point sparkle, so finding it lands.
+- **Hits and breaks are animated.** A struck block flashes its own colour with
+  an expanding outline; a destroyed one blows outward as a fading ring over a
+  bright core. Both are drawn over the block buffer rather than in it, since
+  the buffer is one pixel per cell and cannot scale past a cell boundary.
+- **Redesigning blocks is a one-table job.** `BLOCKS` in `config.js` holds a
+  `color`, a `glow`, a `light` reach and a roll `weight` per block;
+  `BLOCK_TOKEN` and `BLOCK_GOLDEN` are the same shape. Nothing else needs
+  touching.
 - **Fog of war.** You only see what an impact has revealed. The minimap shows
   discovered rock, carved-out space, your heading, and a very faint ring at the
   distance where the golden block can spawn.

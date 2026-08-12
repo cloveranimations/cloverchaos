@@ -14,6 +14,21 @@ const inBounds = (col, row) => col >= 0 && col < GRID_W && row >= 0 && row < GRI
 const isSolid = (w, col, row) => (inBounds(col, row) ? w.hp[idx(col, row)] > 0 : true);
 const isBedrock = (w, col, row) => (inBounds(col, row) ? w.kind[idx(col, row)] === KIND_BEDROCK : true);
 
+/* Weighted block roll, flattened once into a cumulative table. */
+const BLOCK_CUM = (() => {
+  const out = [];
+  let acc = 0;
+  for (const b of BLOCKS) { acc += b.weight; out.push(acc); }
+  return { table: out, total: acc };
+})();
+
+/** Index into BLOCKS for a roll in [0,1). */
+function rollBlock(u) {
+  const x = u * BLOCK_CUM.total;
+  for (let i = 0; i < BLOCK_CUM.table.length; i++) if (x < BLOCK_CUM.table[i]) return i;
+  return BLOCK_CUM.table.length - 1;
+}
+
 function genWorld(seed) {
   const rng = makeRng(seed);
   const w = {
@@ -45,14 +60,9 @@ function genWorld(seed) {
       const i = idx(col, row);
       const tier = tierOfDist(distFrom(col, row, spawnCol, spawnRow));
       w.shade[i] = Math.floor(rng() * 256);
-
-      // Speckle neighbouring tier colours in so the rings read as real strata
-      // instead of clean contour lines.
-      let hue = tier;
-      const roll = rng();
-      if (roll < 0.09 && tier > 0) hue = tier - 1;
-      else if (roll < 0.17 && tier < TIERS.length - 1) hue = tier + 1;
-      w.hue[i] = hue;
+      // Colour is rolled per block and has nothing to do with the layer: the
+      // map reads as scattered colour, while difficulty stays radial.
+      w.hue[i] = rollBlock(rng());
 
       if (col === 0 || col === GRID_W - 1 || row === 0 || row === GRID_H - 1) {
         w.kind[i] = KIND_BEDROCK;
@@ -161,8 +171,8 @@ function newLightMap() {
   };
 }
 
-/** Pre-split the tier glow colours once, since the sweep runs per frame. */
-const GLOW_RGB = TIERS.map((t) => (t.glow ? hexToRgbTriple(t.glow) : null));
+/** Pre-split the block glow colours once, since the sweep runs per frame. */
+const GLOW_RGB = BLOCKS.map((b) => (b.glow ? hexToRgbTriple(b.glow) : null));
 const GLOW_TOKEN = hexToRgbTriple(BLOCK_TOKEN.glow);
 const GLOW_GOLDEN = hexToRgbTriple(BLOCK_GOLDEN.glow);
 
@@ -210,17 +220,18 @@ function buildLight(lm, w, c0, c1, r0, r1, extra) {
       let lr = 0, lg = 0, lb = 0;
 
       if (w.seen[i]) {
-        if (w.hp[i] <= 0) {
-          // Mined-out air keeps a dim floor so cleared rooms stay readable.
-          lr = lg = lb = LIGHT_AMBIENT;
-        } else {
+        // Anything you have uncovered keeps a dim floor. Without it, rock more
+        // than a few blocks from a lamp is indistinguishable from unexplored
+        // map, and the fog stops meaning anything.
+        lr = lg = lb = LIGHT_AMBIENT;
+        if (w.hp[i] > 0) {
           const kind = w.kind[i];
           let glow = null, power = 0;
           if (kind === KIND_TOKEN) { glow = GLOW_TOKEN; power = BLOCK_TOKEN.light; }
           else if (kind === KIND_GOLDEN) { glow = GLOW_GOLDEN; power = BLOCK_GOLDEN.light; }
           else if (kind !== KIND_BEDROCK) {
             const t = w.hue[i];
-            glow = GLOW_RGB[t]; power = TIERS[t].light;
+            glow = GLOW_RGB[t]; power = BLOCKS[t].light;
           }
           if (glow && power > 0) {
             const s = power * LIGHT_SEED;
@@ -246,14 +257,16 @@ function buildLight(lm, w, c0, c1, r0, r1, extra) {
     if (nb > B[i]) B[i] = nb < LIGHT_CUTOFF ? B[i] : nb;
   };
 
-  for (let row = r0; row <= r1; row++) {
-    const base = row * GRID_W;
-    for (let col = c0 + 1; col <= c1; col++) spread(base + col, base + col - 1);
-    for (let col = c1 - 1; col >= c0; col--) spread(base + col, base + col + 1);
-  }
-  for (let col = c0; col <= c1; col++) {
-    for (let row = r0 + 1; row <= r1; row++) spread(row * GRID_W + col, (row - 1) * GRID_W + col);
-    for (let row = r1 - 1; row >= r0; row--) spread(row * GRID_W + col, (row + 1) * GRID_W + col);
+  for (let pass = 0; pass < LIGHT_PASSES; pass++) {
+    for (let row = r0; row <= r1; row++) {
+      const base = row * GRID_W;
+      for (let col = c0 + 1; col <= c1; col++) spread(base + col, base + col - 1);
+      for (let col = c1 - 1; col >= c0; col--) spread(base + col, base + col + 1);
+    }
+    for (let col = c0; col <= c1; col++) {
+      for (let row = r0 + 1; row <= r1; row++) spread(row * GRID_W + col, (row - 1) * GRID_W + col);
+      for (let row = r1 - 1; row >= r0; row--) spread(row * GRID_W + col, (row + 1) * GRID_W + col);
+    }
   }
 
   // Fog wins over light. The sweeps happily smear illumination into cells the
@@ -270,12 +283,24 @@ function buildLight(lm, w, c0, c1, r0, r1, extra) {
 
 function newEffects() {
   return {
-    particles: [], arcs: [], texts: [], shake: 0, haptic: 0,
+    particles: [], arcs: [], texts: [], blockFx: [], shake: 0, haptic: 0,
     tokensGained: 0, brokenCount: 0, goldenHit: false, goldenBroken: false,
   };
 }
 
-const TIER_COLORS = TIERS.map((t) => t.color);
+const BLOCK_COLORS = BLOCKS.map((b) => b.color);
+
+/**
+ * Colour a block presents when it is hit or broken. Specials override their
+ * rolled palette colour so a token never shatters in some random hue.
+ */
+function blockColorAt(w, i) {
+  const kind = w.kind[i];
+  if (kind === KIND_TOKEN) return BLOCK_TOKEN.color;
+  if (kind === KIND_GOLDEN) return BLOCK_GOLDEN.color;
+  if (kind === KIND_BEDROCK) return BLOCK_BEDROCK.color;
+  return BLOCK_COLORS[w.hue[i]];
+}
 
 /** Damage one block. `soft` hits (splash, chain, rot) do not fire haptics. */
 function damageBlock(w, col, row, amount, ctx, soft) {
@@ -294,16 +319,24 @@ function damageBlock(w, col, row, amount, ctx, soft) {
       ctx.fx.goldenHit = true;
       ctx.fx.haptic = Math.max(ctx.fx.haptic, 3);
       spray(ctx.fx, cx, cy, PALETTE.golden, 6, ctx.rng);
-    } else if (!soft) {
-      ctx.fx.haptic = Math.max(ctx.fx.haptic, 1);
-      spray(ctx.fx, cx, cy, TIER_COLORS[w.hue[i]], 2, ctx.rng);
+      ctx.fx.blockFx.push({ col, row, color: PALETTE.golden, kind: 'hit' });
+    } else {
+      if (!soft) {
+        ctx.fx.haptic = Math.max(ctx.fx.haptic, 1);
+        spray(ctx.fx, cx, cy, blockColorAt(w, i), 2, ctx.rng);
+      }
+      // Every hit registers visually, soft or not — a rot tick that silently
+      // shaves HP reads as nothing happening.
+      ctx.fx.blockFx.push({ col, row, color: blockColorAt(w, i), kind: 'hit' });
     }
     return false;
   }
 
   w.hp[i] = 0;
   const kind = w.kind[i];
+  const brokeColor = blockColorAt(w, i);
   w.kind[i] = KIND_ROCK;
+  ctx.fx.blockFx.push({ col, row, color: brokeColor, kind: 'break' });
   clearPoison(w, i);
   ctx.fx.brokenCount++;
   reveal(w, col, row, ctx.stats.revealRadius + ctx.ballReveal);
@@ -327,7 +360,7 @@ function damageBlock(w, col, row, amount, ctx, soft) {
     spray(ctx.fx, cx, cy, '#ffffff', 16, ctx.rng);
   } else {
     ctx.fx.haptic = Math.max(ctx.fx.haptic, 2);
-    spray(ctx.fx, cx, cy, TIER_COLORS[w.hue[i]], 6, ctx.rng);
+    spray(ctx.fx, cx, cy, brokeColor, 6, ctx.rng);
     const bonus = (ctx.stats.luck - 1) * ctx.ballLuck * 0.006;
     if (bonus > 0 && ctx.rng() < bonus) {
       ctx.fx.tokensGained += 1;

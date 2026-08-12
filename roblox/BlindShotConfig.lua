@@ -42,33 +42,66 @@ export type Tier = {
 	name: string,
 	--- Base durability of a block in this tier. Each block rolls ±30%.
 	hp: number,
-	--- The block's own colour, at full light. Near-primary on purpose: the
-	--- renderer multiplies it by the light level, so a muted base turns to mud.
+	--- Tints the layer name in the HUD. Blocks do not use this.
 	color: Color3,
-	--- Colour of the light this block radiates, or nil for inert rock.
+}
+
+--- 8 layers as rings around the spawn point. Layer 1 is whatever you spawned
+--- in, so there is no such thing as a spawn you cannot dig out of. Layers set
+--- difficulty only — appearance comes from Config.BLOCKS.
+Config.TIERS: { Tier } = {
+	{ name = "Crust", hp = 3, color = Color3.fromHex("#c8ccd0") },
+	{ name = "Moss", hp = 6, color = Color3.fromHex("#00c000") },
+	{ name = "Clay", hp = 11, color = Color3.fromHex("#a0b000") },
+	{ name = "Rust", hp = 19, color = Color3.fromHex("#d05000") },
+	{ name = "Ember", hp = 32, color = Color3.fromHex("#e00010") },
+	{ name = "Slate", hp = 52, color = Color3.fromHex("#909aa0") },
+	{ name = "Void", hp = 84, color = Color3.fromHex("#ff00ff") },
+	{ name = "Core", hp = 130, color = Color3.fromHex("#c08000") },
+}
+
+export type BlockDef = {
+	--- The block's colour at full light. Near-primary on purpose: rendering
+	--- multiplies it by the light reaching it, so a muted base turns to mud.
+	color: Color3,
+	--- Colour of the light this block radiates, or nil for dead rock.
 	glow: Color3?,
 	--- How far that glow carries, in blocks.
 	light: number,
+	--- Relative roll frequency. Lamps are deliberately rare: they are the only
+	--- reason any of the cave is visible, so making them common flattens the
+	--- map into one even wash with no dark left in it.
+	weight: number,
 }
 
---- 8 tiers as rings around the spawn point. Layer 1 is whatever you spawned in,
---- so there is no such thing as a spawn you cannot dig out of.
---- This is the table to edit when redesigning blocks; nothing else changes.
-Config.TIERS: { Tier } = {
-	{ name = "Crust", hp = 3, color = Color3.fromHex("#c8ccd0"), glow = Color3.fromHex("#ffffff"), light = 2.3 },
-	{ name = "Moss", hp = 6, color = Color3.fromHex("#00c000"), glow = Color3.fromHex("#00c000"), light = 2.0 },
-	{ name = "Clay", hp = 11, color = Color3.fromHex("#a0b000"), glow = Color3.fromHex("#a0b000"), light = 1.9 },
-	{ name = "Rust", hp = 19, color = Color3.fromHex("#d05000"), glow = Color3.fromHex("#d05000"), light = 1.9 },
-	{ name = "Ember", hp = 32, color = Color3.fromHex("#e00010"), glow = Color3.fromHex("#e00010"), light = 2.0 },
-	{ name = "Slate", hp = 52, color = Color3.fromHex("#909aa0"), glow = Color3.fromHex("#c0ccd4"), light = 1.7 },
-	{ name = "Void", hp = 84, color = Color3.fromHex("#ff00ff"), glow = Color3.fromHex("#ff00ff"), light = 2.6 },
-	{ name = "Core", hp = 130, color = Color3.fromHex("#c08000"), glow = Color3.fromHex("#c08000"), light = 2.2 },
+--- Every solid block rolls one of these at worldgen, independently of its
+--- layer — colour is scattered, difficulty is radial. This is the table to
+--- edit when designing blocks; nothing else changes.
+Config.BLOCKS: { BlockDef } = {
+	{ color = Color3.fromHex("#c8ccd0"), glow = nil, light = 0, weight = 13 },
+	{ color = Color3.fromHex("#909aa0"), glow = nil, light = 0, weight = 12 },
+	{ color = Color3.fromHex("#e00010"), glow = nil, light = 0, weight = 12 },
+	{ color = Color3.fromHex("#d05000"), glow = nil, light = 0, weight = 11 },
+	{ color = Color3.fromHex("#a0b000"), glow = nil, light = 0, weight = 11 },
+	{ color = Color3.fromHex("#00c000"), glow = nil, light = 0, weight = 11 },
+	{ color = Color3.fromHex("#c08000"), glow = nil, light = 0, weight = 10 },
+	{ color = Color3.fromHex("#2f6fd0"), glow = nil, light = 0, weight = 8 },
+	{ color = Color3.fromHex("#7a3fb5"), glow = nil, light = 0, weight = 7 },
+	-- Lamps
+	{ color = Color3.fromHex("#ffffff"), glow = Color3.fromHex("#ffffff"), light = 3.4, weight = 1.5 },
+	{ color = Color3.fromHex("#ff00ff"), glow = Color3.fromHex("#ff00ff"), light = 3.0, weight = 0.7 },
+	{ color = Color3.fromHex("#00e0d0"), glow = Color3.fromHex("#00e0d0"), light = 2.8, weight = 0.5 },
+	{ color = Color3.fromHex("#ffe020"), glow = Color3.fromHex("#ffe020"), light = 3.0, weight = 0.35 },
 }
 
---- Emissive specials, same shape as a tier row so rendering treats them alike.
-Config.BLOCK_TOKEN = { color = Color3.fromHex("#ffffff"), glow = Color3.fromHex("#ffffff"), light = 2.8 }
-Config.BLOCK_GOLDEN = { color = Color3.fromHex("#ffd23d"), glow = Color3.fromHex("#ffd23d"), light = 3.4 }
+--- Specials, same shape as a block row so rendering treats them alike.
+Config.BLOCK_TOKEN = { color = Color3.fromHex("#ffffff"), glow = Color3.fromHex("#ffffff"), light = 1.6 }
+Config.BLOCK_GOLDEN = { color = Color3.fromHex("#ffd23d"), glow = Color3.fromHex("#ffd23d"), light = 5.0 }
 Config.BLOCK_BEDROCK = { color = Color3.fromHex("#20282c"), glow = nil, light = 0 }
+
+--- Seconds a struck / destroyed block stays animated.
+Config.FX_HIT_LIFE = 0.22
+Config.FX_BREAK_LIFE = 0.42
 
 -- ─── Lighting ────────────────────────────────────────────────────────────────
 -- Terraria-style flood light: emissive cells seed a per-cell RGB map, then four
@@ -80,14 +113,18 @@ Config.BLOCK_BEDROCK = { color = Color3.fromHex("#20282c"), glow = nil, light = 
 --- Light kept per block travelled through open space.
 Config.LIGHT_FALL_AIR = 0.82
 --- Light kept per block travelled through solid rock.
-Config.LIGHT_FALL_SOLID = 0.58
---- Floor light every explored cell gets, so mined-out rooms never go pitch black.
-Config.LIGHT_AMBIENT = 0.04
+Config.LIGHT_FALL_SOLID = 0.48
+--- Floor light every explored cell gets. Without it, rock more than a few
+--- blocks from a lamp is indistinguishable from unexplored map.
+Config.LIGHT_AMBIENT = 0.15
 --- Light below this is clamped to nothing, which keeps the sweeps cheap.
 Config.LIGHT_CUTOFF = 0.015
 --- Seeded light per unit of a source's `light`. Sources start above 1.0 so the
 --- blocks touching them still show their true colour after falloff.
 Config.LIGHT_SEED = 0.5
+--- Rounds of the four sweeps. One round only propagates in an L, so light
+--- rounding two corners needs a second pass or it leaves diagonal seams.
+Config.LIGHT_PASSES = 2
 
 --- Blocks of straight-line distance from spawn per tier step.
 Config.LAYER_RADIUS = 12
