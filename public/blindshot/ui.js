@@ -86,7 +86,7 @@ const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
 const JOYSTICK_DEADZONE = 15;
-const JOYSTICK_MOVE_SPEED = 160;
+const JOYSTICK_MOVE_SPEED = 500;
 let particles = [], arcs = [], texts = [], blockFx = [];
 let reload = 0, shake = 0;
 /** Furthest straight-line distance from spawn reached, in blocks. Drives the
@@ -819,10 +819,10 @@ function update(dt, now) {
 
   if (player.vx !== 0 || player.vy !== 0) {
     const moveDir = Math.atan2(player.vy, player.vx);
-    let moved = false;
-    for (let attempts = 0; attempts < 2; attempts++) {
+    const dx = Math.cos(moveDir), dy = Math.sin(moveDir);
+    const moveSteps = Math.max(Math.abs(Math.round(player.vx * dt / CELL)), Math.abs(Math.round(player.vy * dt / CELL))) || 1;
+    for (let step = 0; step < moveSteps; step++) {
       let tryCol = player.col, tryRow = player.row;
-      const dx = Math.cos(moveDir), dy = Math.sin(moveDir);
       if (Math.abs(dx) > Math.abs(dy)) {
         tryCol += dx > 0 ? 1 : -1;
       } else {
@@ -836,9 +836,11 @@ function update(dt, now) {
           player.y = (tryRow + 0.5) * CELL;
           reach = Math.max(reach, distFromSpawn(tryCol, tryRow));
           miniDirty = true;
-          moved = true;
+        } else {
           break;
         }
+      } else {
+        break;
       }
     }
   }
