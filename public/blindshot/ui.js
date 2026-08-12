@@ -78,15 +78,41 @@ const state = {
 let world = null;
 let stats = statsFor(state.unlocked);
 let balls = [];
-const player = { col: START_COL, row: START_ROW, x: 0, y: 0, vx: 0, vy: 0 };
+/**
+ * The player moves in continuous world pixels, not on the block grid. `col` and
+ * `row` are derived from `x`/`y` every frame and exist only so the lighting,
+ * HUD and minimap keep working — nothing may write to them directly, or the
+ * position snaps and the slide is lost.
+ *
+ *   ix, iy   joystick input, -1..1 per axis. Direction and how far the stick
+ *            is pushed; never a speed.
+ *   vx, vy   actual velocity in px/s, chasing the input exponentially.
+ *   face     the angle the triangle is drawn at, eased so it does not snap.
+ */
+const player = {
+  col: START_COL, row: START_ROW,
+  x: 0, y: 0, vx: 0, vy: 0, ix: 0, iy: 0, face: Math.PI / 2,
+};
 const cam = { x: 0, y: 0 };
 const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
 const joystickL = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const joystickR = { id: -1, x: 0, y: 0, cx: 0, cy: 0, active: false };
 const JOYSTICK_RADIUS = 60;
-const JOYSTICK_DEADZONE = 15;
-const JOYSTICK_MOVE_SPEED = 6;
+const JOYSTICK_DEADZONE = 12;
+
+/** Top speed at full stick, in px/s. CELL is 16, so this is ~2.8 blocks/sec. */
+const MOVE_SPEED = 45;
+/**
+ * How sharply velocity chases the stick, per second. Acceleration is quicker
+ * than the coast so the triangle answers the thumb immediately but still
+ * carries a little way after you let go — that is the whole feel of the thing.
+ */
+const MOVE_ACCEL = 8;
+const MOVE_DECEL = 4.5;
+/** Half-width of the player's collision box. Must stay under CELL/2 or it
+ *  cannot fit down a one-block corridor. */
+const PLAYER_RADIUS = 5.2;
 let particles = [], arcs = [], texts = [], blockFx = [];
 let reload = 0, shake = 0;
 /** Furthest straight-line distance from spawn reached, in blocks. Drives the
@@ -171,6 +197,7 @@ function startWorld(seed, data) {
   }
   player.x = (player.col + 0.5) * CELL;
   player.y = (player.row + 0.5) * CELL;
+  player.vx = 0; player.vy = 0; player.ix = 0; player.iy = 0;
   cam.x = player.x; cam.y = player.y;
   balls = []; particles = []; arcs = []; texts = []; blockFx = [];
   reload = 0; shake = 0;
@@ -621,14 +648,18 @@ const paused = () => state.treeOpen || state.won || state.cardOpen;
 el.cv.addEventListener('pointerdown', (e) => {
   if (paused()) return;
   el.cv.setPointerCapture(e.pointerId);
+  // Both sticks are dynamic: the base lands wherever the thumb does. Anchoring
+  // them at a fixed spot meant a touch anywhere else already read as a
+  // full-tilt push and the player left at top speed on the first frame.
   const isLeftHalf = e.clientX < cssW / 2;
   if (isLeftHalf) {
     joystickL.id = e.pointerId; joystickL.active = true;
-    joystickL.cx = cssW / 4; joystickL.cy = cssH - JOYSTICK_RADIUS - 30;
+    joystickL.cx = e.clientX; joystickL.cy = e.clientY;
     joystickL.x = e.clientX; joystickL.y = e.clientY;
+    player.ix = 0; player.iy = 0;
   } else {
     joystickR.id = e.pointerId; joystickR.active = true;
-    joystickR.cx = cssW * 3 / 4; joystickR.cy = cssH - JOYSTICK_RADIUS - 30;
+    joystickR.cx = e.clientX; joystickR.cy = e.clientY;
     joystickR.x = e.clientX; joystickR.y = e.clientY;
     aim.active = true; aim.sx = e.clientX; aim.sy = e.clientY; aim.power = 0;
   }
@@ -640,12 +671,13 @@ el.cv.addEventListener('pointermove', (e) => {
     const dx = e.clientX - joystickL.cx, dy = e.clientY - joystickL.cy;
     const dist = Math.hypot(dx, dy);
     if (dist > JOYSTICK_DEADZONE) {
-      const angle = Math.atan2(dy, dx);
-      const clamped = Math.min(dist, JOYSTICK_RADIUS);
-      player.vx = Math.cos(angle) * (clamped / JOYSTICK_RADIUS) * JOYSTICK_MOVE_SPEED;
-      player.vy = Math.sin(angle) * (clamped / JOYSTICK_RADIUS) * JOYSTICK_MOVE_SPEED;
+      // Rescaled past the deadzone rather than clamped, so easing off the edge
+      // gives a genuinely slow crawl instead of jumping straight to full tilt.
+      const mag = Math.min(1, (dist - JOYSTICK_DEADZONE) / (JOYSTICK_RADIUS - JOYSTICK_DEADZONE));
+      player.ix = (dx / dist) * mag;
+      player.iy = (dy / dist) * mag;
     } else {
-      player.vx = 0; player.vy = 0;
+      player.ix = 0; player.iy = 0;
     }
   } else if (e.pointerId === joystickR.id && joystickR.active) {
     joystickR.x = e.clientX; joystickR.y = e.clientY;
@@ -660,8 +692,9 @@ el.cv.addEventListener('pointermove', (e) => {
 
 function endPointer(e) {
   if (e.pointerId === joystickL.id) {
+    // Input drops, velocity does not — the coast to a stop is in stepPlayer.
     joystickL.active = false; joystickL.id = -1;
-    player.vx = 0; player.vy = 0;
+    player.ix = 0; player.iy = 0;
   } else if (e.pointerId === joystickR.id) {
     joystickR.active = false; joystickR.id = -1;
     aim.active = false;
@@ -703,6 +736,9 @@ el.treeView.addEventListener('pointercancel', endPan);
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 
 el.techBtn.addEventListener('click', () => {
+  // Drop any held stick, or the player resumes the old walk on close.
+  joystickL.active = false; joystickL.id = -1;
+  player.ix = 0; player.iy = 0; player.vx = 0; player.vy = 0;
   state.treeOpen = true;
   el.tree.classList.add('open');
   centreTree();
@@ -788,10 +824,10 @@ function drawMini() {
   mctx.putImageData(miniImg, 0, 0);
 
   // Player triangle, pointing wherever the next shot goes.
-  const px = player.col + 0.5, py = player.row + 0.5;
+  const px = player.x / CELL, py = player.y / CELL;
   mctx.save();
   mctx.translate(px, py);
-  mctx.rotate(aim.angle);
+  mctx.rotate(Math.hypot(player.vx, player.vy) > 2 ? player.face : aim.angle);
   mctx.fillStyle = accentRgba(1);
   mctx.beginPath();
   mctx.moveTo(4.5, 0);
@@ -810,6 +846,91 @@ function drawMini() {
   }
 }
 
+/* ── Player movement ─────────────────────────────────────────────────────────
+ *
+ * Free movement in world pixels. The block grid is a wall the player slides
+ * along, not a set of squares they hop between: the earlier grid-stepping
+ * version could only ever move a whole cell per frame or none at all, which is
+ * why every speed setting came out either instant or frozen.
+ */
+
+/** True for rock the player cannot pass, and for anything off the map. */
+function solidAt(col, row) {
+  if (col < 0 || col >= GRID_W || row < 0 || row >= GRID_H) return true;
+  return world.hp[row * GRID_W + col] > 0;
+}
+
+/** Does the player's box overlap solid rock at this centre? */
+function blockedAt(x, y) {
+  const l = Math.floor((x - PLAYER_RADIUS) / CELL);
+  const r = Math.floor((x + PLAYER_RADIUS) / CELL);
+  const t = Math.floor((y - PLAYER_RADIUS) / CELL);
+  const b = Math.floor((y + PLAYER_RADIUS) / CELL);
+  return solidAt(l, t) || solidAt(r, t) || solidAt(l, b) || solidAt(r, b);
+}
+
+function stepPlayer(dt) {
+  // Velocity chases the stick instead of being set by it. Exponential on both
+  // sides, so a flick ramps up and a release coasts down rather than either
+  // one snapping.
+  const tvx = player.ix * MOVE_SPEED;
+  const tvy = player.iy * MOVE_SPEED;
+  const moving = player.ix !== 0 || player.iy !== 0;
+  const k = 1 - Math.exp(-(moving ? MOVE_ACCEL : MOVE_DECEL) * dt);
+  player.vx += (tvx - player.vx) * k;
+  player.vy += (tvy - player.vy) * k;
+
+  // Below a pixel a second the slide is over; let it settle so the triangle
+  // does not creep forever.
+  if (!moving && Math.hypot(player.vx, player.vy) < 1) {
+    player.vx = 0; player.vy = 0;
+  }
+  if (player.vx === 0 && player.vy === 0) return;
+
+  // Axes resolved separately, which is what lets the player slide along a wall
+  // they are pushing into diagonally instead of sticking to it.
+  const nx = player.x + player.vx * dt;
+  if (!blockedAt(nx, player.y)) {
+    player.x = nx;
+  } else {
+    const col = Math.floor((nx + Math.sign(player.vx) * PLAYER_RADIUS) / CELL);
+    player.x = player.vx > 0
+      ? col * CELL - PLAYER_RADIUS - 0.01
+      : (col + 1) * CELL + PLAYER_RADIUS + 0.01;
+    player.vx = 0;
+  }
+
+  const ny = player.y + player.vy * dt;
+  if (!blockedAt(player.x, ny)) {
+    player.y = ny;
+  } else {
+    const row = Math.floor((ny + Math.sign(player.vy) * PLAYER_RADIUS) / CELL);
+    player.y = player.vy > 0
+      ? row * CELL - PLAYER_RADIUS - 0.01
+      : (row + 1) * CELL + PLAYER_RADIUS + 0.01;
+    player.vy = 0;
+  }
+
+  // The triangle looks where it is going, easing round so a direction change
+  // reads as a turn. Shortest way round, or it spins the long way past ±π.
+  const speed = Math.hypot(player.vx, player.vy);
+  if (speed > 2) {
+    let d = Math.atan2(player.vy, player.vx) - player.face;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    player.face += d * (1 - Math.exp(-12 * dt));
+  }
+
+  // col/row are a read-only view of the real position, refreshed last.
+  const col = Math.floor(player.x / CELL);
+  const row = Math.floor(player.y / CELL);
+  if (col !== player.col || row !== player.row) {
+    player.col = col; player.row = row;
+    reach = Math.max(reach, distFromSpawn(col, row));
+    miniDirty = true;
+  }
+}
+
 /* ── Update ──────────────────────────────────────────────────────────────── */
 
 function update(dt, now) {
@@ -817,26 +938,7 @@ function update(dt, now) {
   dmg.stats = stats;
   dmg.fx = fx;
 
-  if (player.vx !== 0 || player.vy !== 0) {
-    const moveDir = Math.atan2(player.vy, player.vx);
-    const dx = Math.cos(moveDir), dy = Math.sin(moveDir);
-    let tryCol = player.col, tryRow = player.row;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      tryCol += dx > 0 ? 1 : -1;
-    } else {
-      tryRow += dy > 0 ? 1 : -1;
-    }
-    if (tryCol >= 0 && tryCol < GRID_W && tryRow >= 0 && tryRow < GRID_H) {
-      const i = tryRow * GRID_W + tryCol;
-      if (world.hp[i] <= 0) {
-        player.col = tryCol; player.row = tryRow;
-        player.x = (tryCol + 0.5) * CELL;
-        player.y = (tryRow + 0.5) * CELL;
-        reach = Math.max(reach, distFromSpawn(tryCol, tryRow));
-        miniDirty = true;
-      }
-    }
-  }
+  stepPlayer(dt);
 
   const alive = [];
   for (const b of balls) {
@@ -1064,8 +1166,10 @@ function draw(now) {
   if (aim.active && aim.power > 0.06) {
     renderAim(c, player.x, player.y, aim.angle, aim.power, reload <= 0, accentRgba(1));
   }
-  const displayAngle = (player.vx !== 0 || player.vy !== 0) ? Math.atan2(player.vy, player.vx) : aim.angle;
-  renderPlayer(c, player.x, player.y, displayAngle, accentRgba(1));
+  // Facing follows the walk while there is one, and the shot otherwise, so
+  // lining up a throw still turns the triangle to the target.
+  const walking = Math.hypot(player.vx, player.vy) > 2;
+  renderPlayer(c, player.x, player.y, walking ? player.face : aim.angle, accentRgba(1));
 
   c.font = '600 9px monospace';
   c.textAlign = 'center';
