@@ -58,7 +58,7 @@ function genWorld(seed) {
   for (let row = 0; row < GRID_H; row++) {
     for (let col = 0; col < GRID_W; col++) {
       const i = idx(col, row);
-      const tier = tierOfDist(distFrom(col, row, spawnCol, spawnRow));
+      const dist = distFrom(col, row, spawnCol, spawnRow);
       w.shade[i] = Math.floor(rng() * 256);
       // Colour is rolled per block and has nothing to do with the layer: the
       // map reads as scattered colour, while difficulty stays radial.
@@ -71,7 +71,8 @@ function genWorld(seed) {
         continue;
       }
 
-      const hp = Math.max(1, Math.round(TIERS[tier].hp * (0.75 + rng() * 0.55)));
+      const baseHp = hpAtDist(dist);
+      const hp = Math.max(1, Math.round(baseHp * (0.75 + rng() * 0.55)));
       w.hp[i] = hp;
       w.maxHp[i] = hp;
       w.kind[i] = rng() * TOKEN_RARITY < 1 ? KIND_TOKEN : KIND_ROCK;
@@ -79,11 +80,11 @@ function genWorld(seed) {
   }
 
   // Natural voids, so the map is not a uniform slab and balls have room to fly.
-  // Kept out of layer 1 so the opening dig is solid rock you actually break.
+  // Kept out of spawn chamber so the opening dig is solid rock you actually break.
   for (let v = 0; v < 26; v++) {
     const vc = 4 + Math.floor(rng() * (GRID_W - 8));
     const vr = 4 + Math.floor(rng() * (GRID_H - 8));
-    if (distFrom(vc, vr, spawnCol, spawnRow) < LAYER_RADIUS) continue;
+    if (distFrom(vc, vr, spawnCol, spawnRow) < 15) continue;
     carve(w, vc, vr, 1.5 + rng() * 2.5);
   }
 
@@ -352,8 +353,9 @@ function damageBlock(w, col, row, amount, ctx, soft) {
   if (kind === KIND_TOKEN) {
     // Outer rock takes far longer to break, so a token found out there is worth
     // more — otherwise income dries up exactly where upgrades matter most.
-    const tier = tierOfDist(distFrom(col, row, w.spawnCol, w.spawnRow));
-    const gained = Math.max(1, Math.round(ctx.stats.luck * ctx.ballLuck * (1 + tier * 0.35)));
+    const dist = distFrom(col, row, w.spawnCol, w.spawnRow);
+    const depthBonus = 1 + (dist / 80) * 0.5;
+    const gained = Math.max(1, Math.round(ctx.stats.luck * ctx.ballLuck * depthBonus));
     ctx.fx.tokensGained += gained;
     ctx.fx.haptic = Math.max(ctx.fx.haptic, 3);
     ctx.fx.texts.push({ x: cx, y: cy, life: 1.1, text: '+' + gained, color: '#ffffff' });

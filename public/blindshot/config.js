@@ -18,20 +18,6 @@ const START_ROW = 6;
 const START_CHAMBER = 3;
 const BEDROCK_HP = 32000;
 
-/**
- * Layers set difficulty, not appearance: how tough the rock is and what the
- * HUD calls it. `color` here only tints the layer name in the HUD.
- */
-const TIERS = [
-  { name: 'Crust', hp: 3,   color: '#c8ccd0' },
-  { name: 'Moss',  hp: 6,   color: '#00c000' },
-  { name: 'Clay',  hp: 11,  color: '#a0b000' },
-  { name: 'Rust',  hp: 19,  color: '#d05000' },
-  { name: 'Ember', hp: 32,  color: '#e00010' },
-  { name: 'Slate', hp: 52,  color: '#909aa0' },
-  { name: 'Void',  hp: 84,  color: '#ff00ff' },
-  { name: 'Core',  hp: 130, color: '#c08000' },
-];
 
 /**
  * Block appearance. Every solid block rolls one of these at worldgen,
@@ -68,23 +54,10 @@ const BLOCKS = [
 const BLOCK_TOKEN  = { color: '#ffffff', glow: '#ffffff', light: 1.6 };
 const BLOCK_GOLDEN = { color: '#ffd23d', glow: '#ffd23d', light: 5.0 };
 const BLOCK_BEDROCK = { color: '#20282c', glow: null, light: 0 };
-/**
- * Layers radiate out from the spawn point, they are not rows. Whatever corner
- * the run drops you in, the rock touching you is layer 1 / Crust, so there is
- * never a spawn you cannot dig out of. Every LAYER_RADIUS blocks of straight-
- * line distance from spawn steps you one tier harder.
- */
-const LAYER_RADIUS = 12;
 
-/** 0-based tier index for a straight-line distance from spawn, in blocks. */
-function tierOfDist(dist) {
-  const t = Math.floor(dist / LAYER_RADIUS);
-  return t < 0 ? 0 : t >= TIERS.length ? TIERS.length - 1 : t;
-}
-
-/** The number the HUD shows: layer 1 is the spawn chamber. */
-function layerOfDist(dist) {
-  return tierOfDist(dist) + 1;
+/** Base HP for a block at given distance, before jitter. Continuous exponential scaling. */
+function hpAtDist(dist) {
+  return Math.max(1, Math.floor(1 + dist * 0.8 + (dist * dist) * 0.015));
 }
 
 function distFrom(col, row, fromCol, fromRow) {
@@ -95,7 +68,7 @@ function distFrom(col, row, fromCol, fromRow) {
 const KIND_ROCK = 0, KIND_TOKEN = 1, KIND_GOLDEN = 2, KIND_BEDROCK = 3;
 
 /** 1 in N solid blocks hides a token, before luck bonuses. */
-const TOKEN_RARITY = 18;
+const TOKEN_RARITY = 120;
 /** The prize sits this far from spawn, in blocks — layers 6 through 8. */
 const GOLDEN_DIST_MIN = 70;
 const GOLDEN_DIST_MAX = 90;

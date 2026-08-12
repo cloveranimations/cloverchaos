@@ -78,10 +78,15 @@ const state = {
 let world = null;
 let stats = statsFor(state.unlocked);
 let balls = [];
-const player = { col: START_COL, row: START_ROW, x: 0, y: 0 };
+const player = { col: START_COL, row: START_ROW, x: 0, y: 0, vx: 0, vy: 0 };
 const cam = { x: 0, y: 0 };
 const aim = { active: false, sx: 0, sy: 0, angle: Math.PI / 2, power: 0 };
 const ptr = { id: -1, t0: 0, moved: 0 };
+const joystickL = { id: -1, x: 0, y: 0, active: false };
+const joystickR = { id: -1, x: 0, y: 0, active: false };
+const JOYSTICK_RADIUS = 60;
+const JOYSTICK_DEADZONE = 15;
+const JOYSTICK_MOVE_SPEED = 60;
 let particles = [], arcs = [], texts = [], blockFx = [];
 let reload = 0, shake = 0;
 /** Furthest straight-line distance from spawn reached, in blocks. Drives the
@@ -148,7 +153,7 @@ function startWorld(seed, data) {
   if (restored) {
     player.col = data.col; player.row = data.row;
     reach = data.reach || 0; broken = data.broken;
-    maxTier = tierOfDist(reach);
+    maxTier = Math.floor(reach / 20) * 20;
     w.goldenSighted = !!data.sighted;
   } else {
     player.col = w.spawnCol; player.row = w.spawnRow;
@@ -223,19 +228,6 @@ function distFromSpawn(col, row) {
   return world ? distFrom(col, row, world.spawnCol, world.spawnRow) : 0;
 }
 
-/** 0-based tier of a cell. Layer 1 (Crust) is whatever you spawned in. */
-function tierAt(col, row) {
-  return tierOfDist(distFromSpawn(col, row));
-}
-
-/**
- * Explored rock loses a little light the further out it sits, so the ring you
- * are standing in reads brighter than the ones behind you. Bottoms out well
- * short of black — the tier colour still has to be legible out there.
- */
-function layerShade(tier) {
-  return 1 - Math.min(tier, TIERS.length - 1) * 0.06;
-}
 
 /* ── Banner ──────────────────────────────────────────────────────────────── */
 
@@ -256,10 +248,6 @@ function banner(text, seconds, rank) {
 
 function syncHud(force) {
   el.depth.textContent = Math.round(distFromSpawn(player.col, player.row));
-  const t = tierAt(player.col, player.row);
-  el.lvl.textContent = t + 1;
-  el.tier.textContent = TIERS[t].name.toUpperCase();
-  el.tier.style.color = TIERS[t].color;
   el.tokens.textContent = '◆ ' + state.tokens;
   el.treeTokens.textContent = '◆ ' + state.tokens;
 
@@ -633,46 +621,47 @@ const paused = () => state.treeOpen || state.won || state.cardOpen;
 el.cv.addEventListener('pointerdown', (e) => {
   if (paused()) return;
   el.cv.setPointerCapture(e.pointerId);
-  ptr.id = e.pointerId; ptr.t0 = performance.now(); ptr.moved = 0;
-  aim.active = true; aim.sx = e.clientX; aim.sy = e.clientY; aim.power = 0;
+  const isLeftHalf = e.clientX < cssW / 2;
+  if (isLeftHalf) {
+    joystickL.id = e.pointerId; joystickL.active = true;
+    joystickL.x = e.clientX; joystickL.y = e.clientY;
+  } else {
+    joystickR.id = e.pointerId; joystickR.active = true;
+    joystickR.x = e.clientX; joystickR.y = e.clientY;
+    aim.active = true; aim.sx = e.clientX; aim.sy = e.clientY; aim.power = 0;
+  }
 });
 
 el.cv.addEventListener('pointermove', (e) => {
-  if (!aim.active || e.pointerId !== ptr.id) return;
-  // Slingshot: drag away from the target, the ball flies the other way.
-  const dx = aim.sx - e.clientX;
-  const dy = aim.sy - e.clientY;
-  const len = Math.hypot(dx, dy);
-  ptr.moved = Math.max(ptr.moved, len);
-  if (len > 4) {
-    aim.angle = Math.atan2(dy, dx);
-    aim.power = Math.min(1, len / MAX_PULL);
+  if (e.pointerId === joystickL.id && joystickL.active) {
+    const dx = e.clientX - joystickL.x, dy = e.clientY - joystickL.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > JOYSTICK_DEADZONE) {
+      const angle = Math.atan2(dy, dx);
+      const clamped = Math.min(dist, JOYSTICK_RADIUS);
+      player.vx = Math.cos(angle) * (clamped / JOYSTICK_RADIUS) * JOYSTICK_MOVE_SPEED;
+      player.vy = Math.sin(angle) * (clamped / JOYSTICK_RADIUS) * JOYSTICK_MOVE_SPEED;
+    } else {
+      player.vx = 0; player.vy = 0;
+    }
+  } else if (e.pointerId === joystickR.id && joystickR.active) {
+    const dx = aim.sx - e.clientX, dy = aim.sy - e.clientY;
+    const len = Math.hypot(dx, dy);
+    if (len > 4) {
+      aim.angle = Math.atan2(dy, dx);
+      aim.power = Math.min(1, len / MAX_PULL);
+    }
   }
 });
 
 function endPointer(e) {
-  if (!aim.active || e.pointerId !== ptr.id) return;
-  aim.active = false;
-  const held = performance.now() - ptr.t0;
-  const moved = ptr.moved;
-  ptr.id = -1;
-  if (!world) return;
-
-  if (moved < 14 && held < 320) {
-    const p = screenToWorld(e.clientX, e.clientY);
-    const target = walkToward(world, player.col, player.row, Math.floor(p.x / CELL), Math.floor(p.y / CELL));
-    if (target) {
-      player.col = target.col; player.row = target.row;
-      player.x = (target.col + 0.5) * CELL;
-      player.y = (target.row + 0.5) * CELL;
-      reach = Math.max(reach, distFromSpawn(target.col, target.row));
-      buzz(6);
-      miniDirty = true;
-    }
-    return;
-  }
-
-  if (aim.power > 0.06 && reload <= 0) {
+  if (e.pointerId === joystickL.id) {
+    joystickL.active = false; joystickL.id = -1;
+    player.vx = 0; player.vy = 0;
+  } else if (e.pointerId === joystickR.id) {
+    joystickR.active = false; joystickR.id = -1;
+    aim.active = false;
+    if (!world || aim.power <= 0.06 || reload > 0) return;
     balls.push(...spawnVolley(player.x, player.y, aim.angle, aim.power, state.activeBall, stats));
     reload = stats.reload;
     buzz(20);
@@ -824,6 +813,21 @@ function update(dt, now) {
   dmg.stats = stats;
   dmg.fx = fx;
 
+  if (player.vx !== 0 || player.vy !== 0) {
+    const nx = player.x + player.vx * dt;
+    const ny = player.y + player.vy * dt;
+    const nc = Math.floor(nx / CELL);
+    const nr = Math.floor(ny / CELL);
+    const target = walkToward(world, player.col, player.row, nc, nr);
+    if (target) {
+      player.col = target.col; player.row = target.row;
+      player.x = (target.col + 0.5) * CELL;
+      player.y = (target.row + 0.5) * CELL;
+      reach = Math.max(reach, distFromSpawn(target.col, target.row));
+      miniDirty = true;
+    }
+  }
+
   const alive = [];
   for (const b of balls) {
     dmg.ballLuck = BALLS[b.type].luckMul;
@@ -881,10 +885,10 @@ function update(dt, now) {
     save();
   }
 
-  const tier = tierOfDist(reach);
-  if (tier > maxTier) {
-    maxTier = tier;
-    banner(`LAYER ${tier + 1} — ${TIERS[tier].name.toUpperCase()}`, 2.6);
+  const distMilestone = Math.floor(reach / 20) * 20;
+  if (distMilestone > maxTier && distMilestone > 0) {
+    maxTier = distMilestone;
+    banner(`${distMilestone}M — DEEPER IN`, 2.6);
     buzz([20, 40, 20]);
   }
 
@@ -944,6 +948,55 @@ function drawBolt(c, x1, y1, x2, y2) {
   }
   c.lineTo(x2, y2);
   c.stroke();
+}
+
+function renderJoysticks(c) {
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  c.fillStyle = 'rgba(255,255,255,0.15)';
+  c.strokeStyle = accentRgba(0.3);
+  c.lineWidth = 2;
+
+  if (joystickL.active) {
+    const baseCx = cssW / 4, baseCy = cssH - JOYSTICK_RADIUS - 30;
+    c.beginPath();
+    c.arc(baseCx, baseCy, JOYSTICK_RADIUS, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    const dx = joystickL.x - baseCx;
+    const dy = joystickL.y - baseCy;
+    const dist = Math.hypot(dx, dy);
+    const clamped = Math.min(dist, JOYSTICK_RADIUS);
+    const thumbCx = baseCx + (dx / Math.max(dist, 0.1)) * clamped;
+    const thumbCy = baseCy + (dy / Math.max(dist, 0.1)) * clamped;
+    c.fillStyle = accentRgba(0.6);
+    c.beginPath();
+    c.arc(thumbCx, thumbCy, 20, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  if (joystickR.active) {
+    const baseCx = cssW * 3 / 4, baseCy = cssH - JOYSTICK_RADIUS - 30;
+    c.fillStyle = 'rgba(255,255,255,0.15)';
+    c.strokeStyle = accentRgba(0.3);
+    c.beginPath();
+    c.arc(baseCx, baseCy, JOYSTICK_RADIUS, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+
+    const dx = joystickR.x - baseCx;
+    const dy = joystickR.y - baseCy;
+    const dist = Math.hypot(dx, dy);
+    const clamped = Math.min(dist, JOYSTICK_RADIUS);
+    const thumbCx = baseCx + (dx / Math.max(dist, 0.1)) * clamped;
+    const thumbCy = baseCy + (dy / Math.max(dist, 0.1)) * clamped;
+    c.fillStyle = accentRgba(0.6);
+    c.beginPath();
+    c.arc(thumbCx, thumbCy, 20, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.restore();
 }
 
 function draw(now) {
@@ -1014,6 +1067,8 @@ function draw(now) {
   }
   c.globalAlpha = 1;
   c.restore();
+
+  renderJoysticks(c);
 }
 
 /* ── Loop ────────────────────────────────────────────────────────────────── */

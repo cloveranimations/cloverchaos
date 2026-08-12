@@ -24,8 +24,6 @@ function hexToRgb(hex) {
 
 /** Flat per-block base colours. Light does all the shading. */
 const BLOCK_RGB = BLOCKS.map((b) => hexToRgb(b.color));
-/** Layer colours are HUD-only now, but the minimap still keys off them. */
-const TIER_RGB = TIERS.map((t) => hexToRgb(t.color));
 const RGB_TOKEN = hexToRgb(BLOCK_TOKEN.color);
 const RGB_GOLDEN = hexToRgb(BLOCK_GOLDEN.color);
 const RGB_BEDROCK = hexToRgb(BLOCK_BEDROCK.color);
